@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 #
-#provide as arg '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
+# /dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick
+# /dev/input/by-path/pci-0000\:00\:14.0-usb-0\:10\:1.0-event-joystick 
 #
 
 import sys
