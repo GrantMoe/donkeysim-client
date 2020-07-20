@@ -3,6 +3,7 @@ import json
 import time
 from io import BytesIO
 import base64
+import math
 
 from PIL import Image
 import numpy as np
@@ -19,11 +20,28 @@ class SimpleClient(SDClient):
         self.last_image = None
         self.car_loaded = False
         self.ctr = Controller()
-        self.dir = f'{os.getcwd()}/../data/{time.strftime("%m_%d_%Y/%H_%M_%S")}'
-        self.data_dir = f'{self.dir}/data'
-        self.img_dir = f'{self.dir}/images'
+
+        date_count = 0
+        self.data_dir = f' {os.getcwd()} /../data/tub_ {date_count} _ {time.strftime("%y-%m-%d")}'
+        while os.path.isdir(self.data_dir):
+            date_count += 1
+            self.data_dir = f'{os.getcwd()}/../data/tub_{date_count}_{time.strftime("%y-%m-%d")}'
         os.makedirs(self.data_dir)
-        os.makedirs(self.img_dir)
+        self.start_time = time.time()
+        meta_tub = {
+            "inputs": [
+               "cam/image_array", "user/angle",
+               "user/throttle", "user/mode",
+            ], 
+            "types": [
+               "image_array", "float", "float", "str",
+            ],
+            "start": f'{time.time()}',
+            # "start": self.start_time,
+            
+        }
+        with open(f'{self.data_dir}/meta.json', 'w') as outfile:
+            json.dump(meta_tub, outfile)
         self.record_count = 0
 
 
@@ -33,15 +51,22 @@ class SimpleClient(SDClient):
             self.car_loaded = True
 
         if json_packet['msg_type'] == "telemetry":
-            del json_packet['msg_type']                   
-            if json_packet['speed'] > 0.1:
-                imgString = json_packet["image"]
-                image = Image.open(BytesIO(base64.b64decode(imgString)))
-                # image.save(f'{self.img_dir}/frame_{self.record_count:04d}.jpg')
-                image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
-
-                with open(f'{self.data_dir}/data_{self.record_count:04d}', 'w') as outfile:
-                    json.dump(json_packet, outfile)
+            # del json_packet['msg_type']
+            if json_packet['throttle'] > 0.0:
+                record_msec = 1000 * math.floor(time.time() - self.start_time)
+                with open(f'{self.data_dir}/record_{self.record_count}.json', 'w') as outfile:
+                    imgString = json_packet["image"]
+                    imgName = f'{self.record_count}_cam-image-array_.jpg'
+                    image = Image.open(BytesIO(base64.b64decode(imgString)))
+                    temp_json = {
+                        "cam/image_array": imgName,
+                        "user/angle": json_packet['steering_angle'],
+                        "user/throttle": json_packet['throttle'],
+                        "user/mode": "user",
+                        "milliseconds": record_msec,
+                    }
+                    json.dump(temp_json, outfile)
+                    image.save(f'{self.data_dir}/{imgName}')
                     self.record_count += 1 
 
         #don't have to, but to clean up the print, delete the image string.
@@ -69,7 +94,7 @@ class SimpleClient(SDClient):
         rv = self.ctr.norm('left_trigger', 0.0, -1.0)
         if abs(st) < 0.07:
             st = 0.0
-        self.send_controls(st, fw + rv)
+        self.send_controls(st * 0.5, 0.5 * (fw + rv))
 
 
 
@@ -92,7 +117,7 @@ def drive():
     #           'mountain_track'
     #           'sparkfun_avc'
     #           'warehouse'
-    msg = '{ "msg_type" : "load_scene", "scene_name" : "generated_road" }'
+    msg = '{ "msg_type" : "load_scene", "scene_name" : "mountain_track" }'
     client.send(msg)
 
     # Wait briefly for the scene to load.
@@ -117,8 +142,8 @@ def drive():
     # with fish_eye_x/y == 0.0 then you get no distortion
     # img_enc can be one of JPG|PNG|TGA
     # msg = '{ "msg_type" : "cam_config", "fov" : "170", "fish_eye_x" : "1.0", "fish_eye_y" : "1.0", "img_w" : "255", "img_h" : "255", "img_d" : "3", "img_enc" : "JPG", "offset_x" : "0.0", "offset_y" : "3.0", "offset_z" : "0.0", "rot_x" : "90.0" }'
-    # msg = '{ "msg_type" : "cam_config", "fov" : "90", "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "160", "img_h" : "120", "img_d" : "3", "img_enc" : "PNG", "offset_x" : "0.0", "offset_y" : "1.0", "offset_z" : "1.0", "rot_x" : "15.0" }'
-    msg = '{ "msg_type" : "cam_config", "fov" : "90", "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "251", "img_h" : "141", "img_d" : "3", "img_enc" : "PNG", "offset_x" : "0.0", "offset_y" : "4.0", "offset_z" : "1.0", "rot_x" : "0.0" }'
+    msg = '{ "msg_type" : "cam_config", "fov" : "90", "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "160", "img_h" : "120", "img_d" : "3", "img_enc" : "JPG", "offset_x" : "0.0", "offset_y" : "1.0", "offset_z" : "1.0", "rot_x" : "0.0" }'
+    # msg = '{ "msg_type" : "cam_config", "fov" : "90", "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "251", "img_h" : "141", "img_d" : "3", "img_enc" : "PNG", "offset_x" : "0.0", "offset_y" : "4.0", "offset_z" : "1.0", "rot_x" : "0.0" }'
     client.send(msg)
     time.sleep(1)
 

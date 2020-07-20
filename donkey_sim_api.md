@@ -233,6 +233,8 @@ Example:
 
 ### Telemetry
 
+NOTE: speed values are m/s
+
 Sim=>Client. The sim sends this message containing camera image and details about vehicle state. These come at a regular rate set in the sim. Usually about 20 HZ.
 
 Fields: 
