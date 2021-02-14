@@ -33,7 +33,7 @@ ev_map = {
     }
 }
 class Controller:
-    
+
     def __init__(self, ctr_type='xbox', path='/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'):
         try:
             self.fd_ = open(path, 'rb')
