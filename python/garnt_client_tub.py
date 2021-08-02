@@ -22,7 +22,7 @@ class SimpleClient(SDClient):
         self.ctr = Controller()
 
         date_count = 0
-        self.data_dir = f' {os.getcwd()} /../data/tub_ {date_count} _ {time.strftime("%y-%m-%d")}'
+        self.data_dir = f'{os.getcwd()}/../data/tub_{date_count}_{time.strftime("%y-%m-%d")}'
         while os.path.isdir(self.data_dir):
             date_count += 1
             self.data_dir = f'{os.getcwd()}/../data/tub_{date_count}_{time.strftime("%y-%m-%d")}'
@@ -69,8 +69,8 @@ class SimpleClient(SDClient):
                     image.save(f'{self.data_dir}/{imgName}')
                     self.record_count += 1 
 
-        #don't have to, but to clean up the print, delete the image string.
-        del json_packet["image"]
+            #don't have to, but to clean up the print, delete the image string.
+            del json_packet['image']
 
         print("got:", json_packet)
 
@@ -109,6 +109,22 @@ def drive():
     # Start Client
     client = SimpleClient(address=(host, port))
     time.sleep(1)
+    
+
+#    From gym_test.py
+    env_list = [
+        "donkey-warehouse-v0",
+        "donkey-generated-roads-v0",
+        "donkey-avc-sparkfun-v0",
+        "donkey-generated-track-v0",
+        "donkey-roboracingleague-track-v0",
+        "donkey-waveshare-v0",
+        "donkey-minimonaco-track-v0",
+        "donkey-warren-track-v0",
+        "donkey-thunderhill-track-v0",
+        "donkey-circuit-launch-track-v0",
+    ]
+    msg = '{ "msg_type" : "load_scene", "scene_name" : "donkey-circuit-launch-track-v0" }'
 
     # Load Scene message
     #  Choices: 
@@ -117,7 +133,9 @@ def drive():
     #           'mountain_track'
     #           'sparkfun_avc'
     #           'warehouse'
-    msg = '{ "msg_type" : "load_scene", "scene_name" : "mountain_track" }'
+    # msg = '{ "msg_type" : "load_scene", "scene_name" : "mountain_track" }'
+    
+    
     client.send(msg)
 
     # Wait briefly for the scene to load.

@@ -16,7 +16,7 @@ class SimpleClient(SDClient):
 
     def __init__(self, address, poll_socket_sleep_time=0.01):
         super().__init__(*address, poll_socket_sleep_time=poll_socket_sleep_time)
-        self.last_image = None
+        # self.last_image = None
         self.car_loaded = False
         self.ctr = Controller()
         self.dir = f'{os.getcwd()}/../data/{time.strftime("%m_%d_%Y/%H_%M_%S")}'
@@ -35,17 +35,17 @@ class SimpleClient(SDClient):
         if json_packet['msg_type'] == "telemetry":
             del json_packet['msg_type']                   
             if json_packet['speed'] > 0.1:
-                imgString = json_packet["image"]
+                imgString = json_packet['image']
                 image = Image.open(BytesIO(base64.b64decode(imgString)))
-                # image.save(f'{self.img_dir}/frame_{self.record_count:04d}.jpg')
-                image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
+                image.save(f'{self.img_dir}/frame_{self.record_count:04d}.jpg')
+                # image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
 
                 with open(f'{self.data_dir}/data_{self.record_count:04d}', 'w') as outfile:
                     json.dump(json_packet, outfile)
                     self.record_count += 1 
 
-        #don't have to, but to clean up the print, delete the image string.
-        del json_packet["image"]
+            # don't have to, but to clean up the print, delete the image string.
+            del json_packet['image']
 
         print("got:", json_packet)
 
@@ -92,7 +92,7 @@ def drive():
     #           'mountain_track'
     #           'sparkfun_avc'
     #           'warehouse'
-    msg = '{ "msg_type" : "load_scene", "scene_name" : "generated_road" }'
+    msg = '{ "msg_type" : "load_scene", "scene_name" : "donkey-circuit-launch-track-v0" }'
     client.send(msg)
 
     # Wait briefly for the scene to load.
@@ -102,8 +102,8 @@ def drive():
         loaded = client.car_loaded           
         
     # Car config
-    msg = '{ "msg_type" : "car_config", "body_style" : "bare", "body_r" : "255", "body_g" : "255", "body_b" : "255", "car_name" : "Grant", "font_size" : "50" }'
-    # msg = '{ "msg_type" : "car_config", "body_style" : "car01", "body_r" : "234", "body_g" : "21", "body_b" : "144", "car_name" : "Grant", "font_size" : "50" }'
+    # msg = '{ "msg_type" : "car_config", "body_style" : "bare", "body_r" : "255", "body_g" : "255", "body_b" : "255", "car_name" : "Grant", "font_size" : "50" }'
+    msg = '{ "msg_type" : "car_config", "body_style" : "f1", "body_r" : "234", "body_g" : "21", "body_b" : "144", "car_name" : "Grant", "font_size" : "50" }'
     client.send(msg)
     time.sleep(1)
 
@@ -129,7 +129,7 @@ def drive():
     # adjust steering dead zone. clunky
     # ctr.dev.absinfo[EV_ABS.ABS_X] = InputAbsInfo(flat=3000)
 
-    # Send random driving controls
+    # Drive car
     do_drive = True
     while do_drive:
         try:

@@ -92,6 +92,15 @@ class Controller:
 
 def main():
     ctr = Controller()
+    while True:
+        ctr.update()
+        st = ctr.norm('left_stick_horz', -1.0, 1.0)
+        fw = ctr.norm('right_trigger', 0.0, 1.0)
+        rv = ctr.norm('left_trigger', 0.0, -1.0)
+        if abs(st) < 0.07:
+            st = 0.0
+        print("st: {}, th: {}".format(st, (fw+rv)))
+        # self.send_controls(st * 0.5, 0.5 * (fw + rv))
 
 if __name__ == "__main__":
     main()
