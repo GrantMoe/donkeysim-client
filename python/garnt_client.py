@@ -10,38 +10,94 @@ from PIL import Image
 from gym_donkeycar.core.sim_client import SDClient
 from controller import Controller
 import csv
+import shutil
+
 
 class SimpleClient(SDClient):
 
-    def __init__(self, type, address, poll_socket_sleep_time=0.01):
+    def __init__(self, data_format, address, poll_socket_sleep_time=0.01):
         super().__init__(*address, poll_socket_sleep_time=poll_socket_sleep_time)
-        self.type = type
+        self.data_format = data_format
         self.car_loaded = False
-        self.ctr = Controller()
-        timeStr = time.strftime("%m_%d_%Y/%H_%M_%S")
-        self.dir = f'{os.getcwd()}/../data/{timeStr}'
-        self.data_dir = self.dir #f'{self.dir}/data'
-        self.img_dir = f'{self.dir}/data' #f'{self.dir}/images'
-        os.makedirs(self.data_dir)
-        os.makedirs(self.img_dir)
-        self.record_count = 0
         self.start_recording = False
-        if type == 'ASL':
-            self.stamp_file = 'timestamps.txt'
-            self.csv_file = "data.csv"
-            with open(f'{self.data_dir}/{self.stamp_file}', 'w', newline='') as stampfile:
-                pass
-            with open(f'{self.data_dir}/{self.csv_file}', 'w', newline='') as csvfile:
+        self.ctr = Controller()
+        if data_format == 'raw':
+            time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
+            self.dir = f'{os.getcwd()}/../data/{time_str}'
+            self.data_dir = '{self.dir}/data'
+            self.img_dir = f'{self.dir}/images'
+            os.makedirs(self.data_dir)
+            os.makedirs(self.img_dir)
+            self.record_count = 0
+        if data_format == 'ASL':
+            asl_dir = f'{os.getcwd()}/../data/asl'
+            dir_num = 1
+            dir_str = f'DS{dir_num:02}'
+            self.dir = f'{asl_dir}/{dir_str}'
+            while os.path.isdir(self.dir):
+                dir_num += 1
+                dir_str = f'DS{dir_num:02}'
+                self.dir = f'{os.getcwd()}/../data/asl/{dir_str}'
+            os.makedirs(self.dir)
+            # add entry to example .sh file
+            sh_file = '/home/grant/projects/ORB_SLAM3/Examples/sim_examples.sh'
+            sh_str = (
+                f'./Monocular-Inertial/mono_inertial_euroc'
+                f' ../Vocabulary/ORBvoc.txt'
+                f' "$pathDatasetDonkeySim"/Monocular-Inertial/DonkeySim.yaml'
+                f' "$pathDatasetDonkeySim"/{dir_str}'
+                f' "$pathDatasetDonkeySim"/Monocular-Inertial/DonkeySim_Timestamps/{dir_str}.txt'
+                f' dataset-{dir_str}_monoi'
+            )
+            with open(sh_file, 'a') as f:
+                f.write(f'\n\necho "Launching {dir_str} with Monocular-Inertial sensor"')
+                f.write(f'\n{sh_str}')
+            self.mav_dir = f'{self.dir}/mav0'
+            self.cam_dir = f'{self.mav_dir}/cam0'
+            self.imu_dir = f'{self.mav_dir}/imu0'
+            self.img_dir = f'{self.cam_dir}/data'
+            os.makedirs(self.mav_dir)
+            os.makedirs(self.cam_dir)
+            os.makedirs(self.imu_dir)
+            os.makedirs(self.img_dir)
+            # copy yaml files
+            shutil.copy(f'{asl_dir}/body.yaml', self.mav_dir)
+            shutil.copy(f'{asl_dir}/cam_sensor.yaml', f'{self.cam_dir}/sensor.yaml')
+            shutil.copy(f'{asl_dir}/imu_sensor.yaml', f'{self.imu_dir}/sensor.yaml')
+            # create cam and imu data.csv files
+            self.cam_csv = f'{self.cam_dir}/data.csv'
+            self.imu_csv = f'{self.imu_dir}/data.csv'
+            with open(self.cam_csv, 'w', newline='') as csvfile:
                 row_writer = csv.writer(csvfile)
                 row_writer.writerow(['#timestamp [ns]', 'filename'])
+            with open(self.imu_csv, 'w', newline='') as csvfile:
+                row_writer = csv.writer(csvfile)
+                row_writer.writerow(['#timestamp [ns]', 
+                                    'w_RS_S_x [rad s^-1]', 
+                                    'w_RS_S_y [rad s^-1]', 
+                                    'w_RS_S_z [rad s^-1]', 
+                                    'a_RS_S_x [m s^-2]', 
+                                    'a_RS_S_y [m s^-2]',
+                                    'a_RS_S_z [m s^-2]'
+                                    ])
+            # create timestamp files
+            cam_ts_dir = f'{asl_dir}/Monocular-Inertial/DonkeySim_Timestamps'
+            self.cam_ts_file = f'{cam_ts_dir}/{dir_str}.txt'
+            with open(self.cam_ts_file, 'w') as stampfile:
+                pass
+            imu_ts_dir = f'{asl_dir}/Monocular-Inertial/DonkeySim_IMU'
+            self.imu_ts_file = f'{imu_ts_dir}/{dir_str}.txt'
+            with open(self.imu_ts_file, 'w', newline='') as stampfile:
+                stampfile.write('#timestamp [ns],w_RS_S_x [rad s^-1],'
+                                'w_RS_S_y [rad s^-1],w_RS_S_z [rad s^-1],'
+                                'a_RS_S_x [m s^-2],a_RS_S_y [m s^-2],'
+                                'a_RS_S_z [m s^-2]\n')
 
 
     def on_msg_recv(self, json_packet):
         if json_packet['msg_type'] == "car_loaded":
             self.car_loaded = True
-            # if not self.prev_frame:
-                # self.prev_frame = time.time()
-        
+
         if json_packet['msg_type'] == "telemetry":
             if json_packet['throttle'] > 0.0:
                 self.start_recording = True
@@ -49,22 +105,48 @@ class SimpleClient(SDClient):
                 imgString = json_packet['image']
                 del json_packet['image']
                 image = Image.open(BytesIO(base64.b64decode(imgString)))
-                if self.type == "raw":                  
+                if self.data_format == "raw":                  
                     image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
                     with open(f'{self.data_dir}/data_{self.record_count:04d}', 'w') as outfile:
                         json.dump(json_packet, outfile)
                         self.record_count += 1 
-                if self.type == "ASL":
+                if self.data_format == "ASL":
                     time_stamp= str(time.time_ns())
+                    # image
                     image.save(f'{self.img_dir}/{time_stamp}.png')
-                    with open(f'{self.data_dir}/{self.stamp_file}', 'a') as stampfile:
+                    with open(self.cam_ts_file, 'a') as stampfile:
                         stampfile.write(time_stamp+'\n')
-                    with open(f'{self.data_dir}/{self.csv_file}', 'a', newline='') as csvfile:
+                    with open(self.cam_csv, 'a', newline='') as csvfile:
                         row_writer = csv.writer(csvfile)
                         row_writer.writerow([time_stamp, time_stamp+'.png'])
+                    # imu
+                    imu_stamp = (
+                        f"{time_stamp},"
+                        f"{json_packet['gyro_x']},"
+                        f"{json_packet['gyro_y']},"
+                        f"{json_packet['gyro_z']},"
+                        f"{json_packet['accel_x']},"
+                        f"{json_packet['accel_y']},"
+                        f"{json_packet['accel_z']}\n"
+                    )
+                    with open(self.imu_ts_file, 'a') as stampfile:
+                        stampfile.write(imu_stamp)
+                    imu_data = [
+                        time_stamp,
+                        float(json_packet['gyro_x']),
+                        float(json_packet['gyro_y']),
+                        float(json_packet['gyro_z']),
+                        float(json_packet['accel_x']),
+                        float(json_packet['accel_y']),
+                        float(json_packet['accel_z'])
+                    ]
+                    with open(self.imu_csv, 'a', newline='') as csvfile:
+                        row_writer = csv.writer(csvfile)
+                        row_writer.writerow(imu_data)
 
         if json_packet['msg_type'] != "telemetry":     
             print("got:", json_packet)
+
 
     def send_controls(self, steering, throttle):
         p = { "msg_type" : "control",
@@ -75,6 +157,7 @@ class SimpleClient(SDClient):
         self.send(msg)
         #this sleep lets the SDClient thread poll our message and send it out.
         time.sleep(self.poll_socket_sleep_sec)
+
 
     def update(self, st_scale=1.0, th_scale=0.5):
         # get normed inputs
@@ -96,12 +179,6 @@ def run_client(env_name, conf):
 
     time.sleep(1)
 
-    # # test
-    # msg = '{ "msg_type" : "get_scene_names" }'
-    # client.send(msg)
-    # time.sleep(1) 
-
-
     msg = f'{{ "msg_type" : "load_scene", "scene_name" : "{env_name}" }}'
     client.send(msg)
     loaded = False
@@ -109,8 +186,6 @@ def run_client(env_name, conf):
         time.sleep(1.0)
         loaded = client.car_loaded           
         
-
-
     # Car config
     msg = f'{{ "msg_type" : "car_config", "body_style" : "{conf["body_style"]}", "body_r" : "{conf["body_rgb"][0]}", "body_g" : "{conf["body_rgb"][1]}", "body_b" : "{conf["body_rgb"][2]}", "car_name" : "{conf["car_name"]}", "font_size" : "{conf["font_size"]}" }}'
     client.send(msg)
@@ -149,7 +224,6 @@ def run_client(env_name, conf):
     # Close down clients
     print("waiting for msg loop to stop")
     client.stop()
-
     print("client stopped")
 
 
