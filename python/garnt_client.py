@@ -125,8 +125,9 @@ class SimpleClient(SDClient):
                 if self.data_format == 'csv':
                     image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
                     with open(self.csv_file_path, 'a') as outfile:
-                        csv_string = ','.join(str(json_packet[col]) for col in self.csv_cols)
+                        csv_string = f"{','.join(str(json_packet[col]) for col in self.csv_cols)}\n"
                         outfile.write(csv_string)
+                    self.record_count += 1 
                 if self.data_format == "ASL":
                     time_stamp= str(time.time_ns())
                     # image
@@ -287,8 +288,8 @@ if __name__ == "__main__":
         "host": args.host,
         "port": args.port,
         "data_type": args.data_type,
-        # "body_style": "donkey", # donkey, bare, car01, cybertruck, f1
-        # "body_rgb": (255, 255, 255), #(234, 21, 144),
+        "body_style": "donkey", # donkey, bare, car01, cybertruck, f1
+        "body_rgb": (127, 127, 127), # pink: (234, 21, 144),
         "car_name": "",
         "font_size": 10,
         "racer_name": "Grant",
