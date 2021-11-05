@@ -1,3 +1,7 @@
+# The structure of this program is based on the sdsandbox test client:
+# https://github.com/tawnkramer/sdsandbox/blob/master/src/test_client.py 
+# by tawnkramer (https://github.com/tawnkramer)
+
 import argparse
 from re import T
 import uuid
@@ -33,13 +37,22 @@ class SimpleClient(SDClient):
             self.current_lap = 0
         if data_format == 'csv':
             self.csv_cols = [
-                "steering_angle", "throttle", "speed", "hit", "time", 
-                "accel_x", "accel_y", "accel_z", "gyro_x", "gyro_y", 
-                "gyro_z", "gyro_w", "pitch", "yaw", "roll", "cte", 
-                "activeNode", "totalNodes", "pos_x", "pos_y", "pos_z", 
-                "vel_x", "vel_y", "vel_z", "on_road", 
-                "progress_on_shortest_path", "lap"
+                'steering_angle', 'throttle', 'speed', 'image', 'hit', 
+                'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
+                'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll', 
+                'cte', 'activeNode', 'totalNodes', 'pos_x', 'pos_y', 
+                'pos_z', 'vel_x', 'vel_y', 'vel_z', 'on_road', 
+                'progress_on_shortest_path', 'lap'
                 ]
+
+            # self.csv_cols = [
+            #     "steering_angle", "throttle", "speed", "image", "hit", "time", 
+            #     "accel_x", "accel_y", "accel_z", "gyro_x", "gyro_y", 
+            #     "gyro_z", "gyro_w", "pitch", "yaw", "roll", "cte", 
+            #     "activeNode", "totalNodes", "pos_x", "pos_y", "pos_z", 
+            #     "vel_x", "vel_y", "vel_z", "on_road", 
+            #     "progress_on_shortest_path", "lap"
+            #     ]
             self.csv_file_path = f'{self.data_dir}/data.csv'
             with open(self.csv_file_path, 'w', newline='') as csv_outfile:
                 row_writer = csv.writer(csv_outfile)
@@ -124,19 +137,20 @@ class SimpleClient(SDClient):
             if json_packet['throttle'] > 0.0:
                 self.start_recording = True
             if self.start_recording:
-                imgString = json_packet['image']
-                del json_packet['image']
-                image = Image.open(BytesIO(base64.b64decode(imgString)))
                 json_packet['lap'] = self.current_lap
-                if self.data_format == "raw":                  
+                if self.data_format == "raw":
+                    json_packet['lap'] = self.current_lap
+                    imgString = json_packet['image']
+                    image = Image.open(BytesIO(base64.b64decode(imgString)))
                     image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
+                    del json_packet['image']
                     with open(f'{self.data_dir}/data_{self.record_count:04d}', 'w') as outfile:
                         json.dump(json_packet, outfile)
                     self.record_count += 1 
                 if self.data_format == 'csv':
                     del json_packet['msg_type']
                     json_packet['lap'] = self.current_lap
-                    image.save(f"{self.img_dir}/{json_packet['time']}.png")
+                    # image.save(f"{self.img_dir}/{json_packet['time']}.png")
                     with open(self.csv_file_path, 'a', newline='') as csv_outfile:
                         row_writer = csv.writer(csv_outfile)
                         row_writer.writerow(value for value in json_packet.values())
