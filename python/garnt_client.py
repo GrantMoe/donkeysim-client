@@ -30,6 +30,7 @@ class SimpleClient(SDClient):
             os.makedirs(self.data_dir, exist_ok=True)
             os.makedirs(self.img_dir, exist_ok=True)
             self.record_count = 0
+            self.current_lap = 0
         if data_format == 'csv':
             self.csv_cols = ["time", "steering_angle", "throttle", 
                             "speed", "hit", "time", "accel_x", "accel_y", 
@@ -37,7 +38,7 @@ class SimpleClient(SDClient):
                             "gyro_w", "pitch", "yaw", "roll", "cte", 
                             "activeNode", "totalNodes", "pos_x", 
                             "pos_y", "pos_z", "vel_x", "vel_y", "vel_z", 
-                            "on_road", "progress_on_shortest_path"]
+                            "on_road", "progress_on_shortest_path", "lap"]
             self.csv_file_path = f'{self.data_dir}/data.csv'
             with open(self.csv_file_path, 'w') as csv_outfile:
                 csv_outfile.write(f"{','.join(self.csv_cols)}\n")
@@ -113,6 +114,9 @@ class SimpleClient(SDClient):
         if json_packet['msg_type'] == "car_loaded":
             self.car_loaded = True
 
+        if json_packet['msg_type'] == "collision_with_starting_line":
+            self.current_lap += 1
+
         if json_packet['msg_type'] == "telemetry":
             if json_packet['throttle'] > 0.0:
                 self.start_recording = True
@@ -120,6 +124,7 @@ class SimpleClient(SDClient):
                 imgString = json_packet['image']
                 del json_packet['image']
                 image = Image.open(BytesIO(base64.b64decode(imgString)))
+                json_packet['lap'] = self.current_lap
                 if self.data_format == "raw":                  
                     image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
                     with open(f'{self.data_dir}/data_{self.record_count:04d}', 'w') as outfile:
@@ -130,6 +135,7 @@ class SimpleClient(SDClient):
                     with open(self.csv_file_path, 'a') as csv_outfile:
                         csv_string = str(f"{msg_time},")
                         csv_string += f"{','.join(str(json_packet[col]) for col in self.csv_cols)}\n"
+                        csv_string += f"{self.current_lap}\n"
                         csv_outfile.write(csv_string)
                     self.record_count += 1 
                 if self.data_format == "ASL":
