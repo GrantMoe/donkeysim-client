@@ -24,10 +24,10 @@ class SimpleClient(SDClient):
         if data_format == 'raw':
             time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
             self.dir = f'{os.getcwd()}/../data/{time_str}'
-            self.data_dir = '{self.dir}/data'
+            self.data_dir = f'{self.dir}/data'
             self.img_dir = f'{self.dir}/images'
-            os.makedirs(self.data_dir)
-            os.makedirs(self.img_dir)
+            os.makedirs(self.data_dir, exist_ok=True)
+            os.makedirs(self.img_dir, exist_ok=True)
             self.record_count = 0
         if data_format == 'ASL':
             asl_dir = f'{os.getcwd()}/../data/asl'
@@ -109,7 +109,7 @@ class SimpleClient(SDClient):
                     image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
                     with open(f'{self.data_dir}/data_{self.record_count:04d}', 'w') as outfile:
                         json.dump(json_packet, outfile)
-                        self.record_count += 1 
+                    self.record_count += 1 
                 if self.data_format == "ASL":
                     time_stamp= str(time.time_ns())
                     # image
@@ -187,9 +187,9 @@ def run_client(env_name, conf):
         loaded = client.car_loaded           
         
     # Car config
-    msg = f'{{ "msg_type" : "car_config", "body_style" : "{conf["body_style"]}", "body_r" : "{conf["body_rgb"][0]}", "body_g" : "{conf["body_rgb"][1]}", "body_b" : "{conf["body_rgb"][2]}", "car_name" : "{conf["car_name"]}", "font_size" : "{conf["font_size"]}" }}'
-    client.send(msg)
-    time.sleep(1)
+    # msg = f'{{ "msg_type" : "car_config", "body_style" : "{conf["body_style"]}", "body_r" : "{conf["body_rgb"][0]}", "body_g" : "{conf["body_rgb"][1]}", "body_b" : "{conf["body_rgb"][2]}", "car_name" : "{conf["car_name"]}", "font_size" : "{conf["font_size"]}" }}'
+    # client.send(msg)
+    # time.sleep(1)
 
     # Camera config
     # set any field to Zero to get the default camera setting.
@@ -198,9 +198,9 @@ def run_client(env_name, conf):
     # the offset_z moves camera forward/back
     # with fish_eye_x/y == 0.0 then you get no distortion
     # img_enc can be one of JPG|PNG|TGA
-    msg = '{ "msg_type" : "cam_config", "fov" : "90", "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "1280", "img_h" : "960", "img_d" : "1", "img_enc" : "PNG", "offset_x" : "0.0", "offset_y" : "0.0", "offset_z" : "0.0", "rot_x" : "0.0" }'
-    client.send(msg)
-    time.sleep(1)
+    # msg = '{ "msg_type" : "cam_config", "fov" : "90", "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "1280", "img_h" : "960", "img_d" : "1", "img_enc" : "PNG", "offset_x" : "0.0", "offset_y" : "0.0", "offset_z" : "0.0", "rot_x" : "0.0" }'
+    # client.send(msg)
+    # time.sleep(1)
 
     # Drive car
     do_drive = True
@@ -258,9 +258,9 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default="127.0.0.1", help="host to use for tcp")
     parser.add_argument("--port", type=int, default=9091, help="port to use for tcp")
     parser.add_argument(
-        "--env_name", type=str, default="circuit_launch", help="name of donkey sim environment", choices=env_list
+        "--env_name", type=str, default="mini_monaco", help="name of donkey sim environment", choices=env_list
     )
-    parser.add_argument("--data_type", type=str, default="ASL", help="recording format", choices=format_list) 
+    parser.add_argument("--data_type", type=str, default="raw", help="recording format", choices=format_list) 
 
     args = parser.parse_args()
 
@@ -269,8 +269,8 @@ if __name__ == "__main__":
         "host": args.host,
         "port": args.port,
         "data_type": args.data_type,
-        "body_style": "bare", # donkey, bare, car01, cybertruck, f1
-        "body_rgb": (234, 21, 144),
+        # "body_style": "donkey", # donkey, bare, car01, cybertruck, f1
+        # "body_rgb": (255, 255, 255), #(234, 21, 144),
         "car_name": "",
         "font_size": 10,
         "racer_name": "Grant",
