@@ -41,8 +41,9 @@ class SimpleClient(SDClient):
                 "progress_on_shortest_path", "lap"
                 ]
             self.csv_file_path = f'{self.data_dir}/data.csv'
-            with open(self.csv_file_path, 'w') as csv_outfile:
-                csv_outfile.write(f"{','.join(self.csv_cols)}\n")
+            with open(self.csv_file_path, 'w', newline='') as csv_outfile:
+                row_writer = csv.writer(csv_outfile)
+                row_writer.writerow(self.csv_cols)
         if data_format == 'ASL':
             asl_dir = f'{os.getcwd()}/../data/asl'
             dir_num = 1
@@ -132,9 +133,13 @@ class SimpleClient(SDClient):
                 if self.data_format == 'csv':
                     image.save(f"{self.img_dir}/{json_packet['time']}.png")
                     json_packet['lap'] = self.current_lap
-                    with open(self.csv_file_path, 'a') as csv_outfile:
-                        csv_string = f"{','.join(str(json_packet[col]) for col in self.csv_cols)}\n"
-                        csv_outfile.write(csv_string)
+                    with open(self.csv_file_path, 'a', newline='') as csv_outfile:
+                        row_writer = csv.writer(csv_outfile)
+                        row_writer.writerow((str(json_packet[col]) for col in self.csv_cols))
+
+                    # with open(self.csv_file_path, 'a') as csv_outfile:
+                        # csv_string = f"{','.join(str(json_packet[col]) for col in self.csv_cols)}\n"
+                        # csv_outfile.write(csv_string)
                     self.record_count += 1 
                 if self.data_format == "ASL":
                     time_stamp= str(time.time_ns())
