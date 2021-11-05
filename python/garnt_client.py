@@ -31,16 +31,16 @@ class SimpleClient(SDClient):
             os.makedirs(self.img_dir, exist_ok=True)
             self.record_count = 0
         if data_format == 'csv':
-            self.csv_cols = ["steering_angle", "throttle", "speed", 
-                            "hit", "time", "accel_x", "accel_y", 
+            self.csv_cols = ["time", "steering_angle", "throttle", 
+                            "speed", "hit", "time", "accel_x", "accel_y", 
                             "accel_z", "gyro_x", "gyro_y", "gyro_z", 
                             "gyro_w", "pitch", "yaw", "roll", "cte", 
                             "activeNode", "totalNodes", "pos_x", 
                             "pos_y", "pos_z", "vel_x", "vel_y", "vel_z", 
                             "on_road", "progress_on_shortest_path"]
             self.csv_file_path = f'{self.data_dir}/data.csv'
-            with open(self.csv_file_path, 'w') as outfile:
-                outfile.write(','.join(self.csv_cols))
+            with open(self.csv_file_path, 'w') as csv_outfile:
+                csv_outfile.write(f"{','.join(self.csv_cols)}\n")
         if data_format == 'ASL':
             asl_dir = f'{os.getcwd()}/../data/asl'
             dir_num = 1
@@ -107,6 +107,9 @@ class SimpleClient(SDClient):
 
 
     def on_msg_recv(self, json_packet):
+        
+        msg_time = time.time()
+
         if json_packet['msg_type'] == "car_loaded":
             self.car_loaded = True
 
@@ -123,10 +126,11 @@ class SimpleClient(SDClient):
                         json.dump(json_packet, outfile)
                     self.record_count += 1 
                 if self.data_format == 'csv':
-                    image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
-                    with open(self.csv_file_path, 'a') as outfile:
-                        csv_string = f"{','.join(str(json_packet[col]) for col in self.csv_cols)}\n"
-                        outfile.write(csv_string)
+                    image.save(f'{self.img_dir}/{msg_time}.png')
+                    with open(self.csv_file_path, 'a') as csv_outfile:
+                        csv_string = str(f"{msg_time},")
+                        csv_string += f"{','.join(str(json_packet[col]) for col in self.csv_cols)}\n"
+                        csv_outfile.write(csv_string)
                     self.record_count += 1 
                 if self.data_format == "ASL":
                     time_stamp= str(time.time_ns())
