@@ -209,9 +209,9 @@ def run_client(env_name, conf):
         loaded = client.car_loaded           
         
     # Car config
-    # msg = f'{{ "msg_type" : "car_config", "body_style" : "{conf["body_style"]}", "body_r" : "{conf["body_rgb"][0]}", "body_g" : "{conf["body_rgb"][1]}", "body_b" : "{conf["body_rgb"][2]}", "car_name" : "{conf["car_name"]}", "font_size" : "{conf["font_size"]}" }}'
-    # client.send(msg)
-    # time.sleep(1)
+    msg = f'{{ "msg_type" : "car_config", "body_style" : "{conf["body_style"]}", "body_r" : "{conf["body_rgb"][0]}", "body_g" : "{conf["body_rgb"][1]}", "body_b" : "{conf["body_rgb"][2]}", "car_name" : "{conf["car_name"]}", "font_size" : "{conf["font_size"]}" }}'
+    client.send(msg)
+    time.sleep(1)
 
     # Camera config
     # set any field to Zero to get the default camera setting.
@@ -293,7 +293,7 @@ if __name__ == "__main__":
         "port": args.port,
         "data_type": args.data_type,
         "body_style": "donkey", # donkey, bare, car01, cybertruck, f1
-        "body_rgb": (127, 127, 127), # pink: (234, 21, 144),
+        "body_rgb": (255, 72, 0), # orange # pink: (234, 21, 144),
         "car_name": "",
         "font_size": 10,
         "racer_name": "Grant",
