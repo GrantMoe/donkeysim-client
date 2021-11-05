@@ -131,9 +131,9 @@ class SimpleClient(SDClient):
                     self.record_count += 1 
                 if self.data_format == 'csv':
                     image.save(f"{self.img_dir}/{json_packet['time']}.png")
+                    json_packet['lap'] = self.current_lap
                     with open(self.csv_file_path, 'a') as csv_outfile:
                         csv_string = f"{','.join(str(json_packet[col]) for col in self.csv_cols)}\n"
-                        csv_string += f"{self.current_lap}\n"
                         csv_outfile.write(csv_string)
                     self.record_count += 1 
                 if self.data_format == "ASL":
