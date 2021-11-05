@@ -32,13 +32,14 @@ class SimpleClient(SDClient):
             self.record_count = 0
             self.current_lap = 0
         if data_format == 'csv':
-            self.csv_cols = ["time", "steering_angle", "throttle", 
-                            "speed", "hit", "time", "accel_x", "accel_y", 
-                            "accel_z", "gyro_x", "gyro_y", "gyro_z", 
-                            "gyro_w", "pitch", "yaw", "roll", "cte", 
-                            "activeNode", "totalNodes", "pos_x", 
-                            "pos_y", "pos_z", "vel_x", "vel_y", "vel_z", 
-                            "on_road", "progress_on_shortest_path", "lap"]
+            self.csv_cols = [
+                "steering_angle", "throttle", "speed", "hit", "time", 
+                "accel_x", "accel_y", "accel_z", "gyro_x", "gyro_y", 
+                "gyro_z", "gyro_w", "pitch", "yaw", "roll", "cte", 
+                "activeNode", "totalNodes", "pos_x", "pos_y", "pos_z", 
+                "vel_x", "vel_y", "vel_z", "on_road", 
+                "progress_on_shortest_path", "lap"
+                ]
             self.csv_file_path = f'{self.data_dir}/data.csv'
             with open(self.csv_file_path, 'w') as csv_outfile:
                 csv_outfile.write(f"{','.join(self.csv_cols)}\n")
@@ -108,8 +109,6 @@ class SimpleClient(SDClient):
 
 
     def on_msg_recv(self, json_packet):
-        
-        msg_time = time.time()
 
         if json_packet['msg_type'] == "car_loaded":
             self.car_loaded = True
@@ -131,10 +130,9 @@ class SimpleClient(SDClient):
                         json.dump(json_packet, outfile)
                     self.record_count += 1 
                 if self.data_format == 'csv':
-                    image.save(f'{self.img_dir}/{msg_time}.png')
+                    image.save(f"{self.img_dir}/{json_packet['time']}.png")
                     with open(self.csv_file_path, 'a') as csv_outfile:
-                        csv_string = str(f"{msg_time},")
-                        csv_string += f"{','.join(str(json_packet[col]) for col in self.csv_cols)}\n"
+                        csv_string = f"{','.join(str(json_packet[col]) for col in self.csv_cols)}\n"
                         csv_string += f"{self.current_lap}\n"
                         csv_outfile.write(csv_string)
                     self.record_count += 1 
