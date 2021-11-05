@@ -30,11 +30,11 @@ class SimpleClient(SDClient):
             time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
             self.dir = f'{os.getcwd()}/../data/{time_str}'
             self.data_dir = f'{self.dir}/{data_format}_data'
-            self.img_dir = f'{self.dir}/images'
             os.makedirs(self.data_dir, exist_ok=True)
+        if data_format == 'raw':
+            self.img_dir = f'{self.dir}/images'
             os.makedirs(self.img_dir, exist_ok=True)
             self.record_count = 0
-            self.current_lap = 0
         if data_format == 'csv':
             self.csv_cols = [
                 'steering_angle', 'throttle', 'speed', 'image', 'hit', 
@@ -44,19 +44,11 @@ class SimpleClient(SDClient):
                 'pos_z', 'vel_x', 'vel_y', 'vel_z', 'on_road', 
                 'progress_on_shortest_path', 'lap'
                 ]
-
-            # self.csv_cols = [
-            #     "steering_angle", "throttle", "speed", "image", "hit", "time", 
-            #     "accel_x", "accel_y", "accel_z", "gyro_x", "gyro_y", 
-            #     "gyro_z", "gyro_w", "pitch", "yaw", "roll", "cte", 
-            #     "activeNode", "totalNodes", "pos_x", "pos_y", "pos_z", 
-            #     "vel_x", "vel_y", "vel_z", "on_road", 
-            #     "progress_on_shortest_path", "lap"
-            #     ]
             self.csv_file_path = f'{self.data_dir}/data.csv'
             with open(self.csv_file_path, 'w', newline='') as csv_outfile:
                 row_writer = csv.writer(csv_outfile)
                 row_writer.writerow(self.csv_cols)
+            self.current_lap = 0
         if data_format == 'ASL':
             asl_dir = f'{os.getcwd()}/../data/asl'
             dir_num = 1
@@ -124,22 +116,20 @@ class SimpleClient(SDClient):
 
     def on_msg_recv(self, json_packet):
 
+        if json_packet['msg_type'] != "telemetry":     
+            print("got:", json_packet)
+
         if json_packet['msg_type'] == "car_loaded":
             self.car_loaded = True
 
         if json_packet['msg_type'] == "collision_with_starting_line":
             self.current_lap += 1
 
-        if json_packet['msg_type'] != "telemetry":     
-            print("got:", json_packet)
-
         if json_packet['msg_type'] == "telemetry":
             if json_packet['throttle'] > 0.0:
                 self.start_recording = True
             if self.start_recording:
-                json_packet['lap'] = self.current_lap
                 if self.data_format == "raw":
-                    json_packet['lap'] = self.current_lap
                     imgString = json_packet['image']
                     image = Image.open(BytesIO(base64.b64decode(imgString)))
                     image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
@@ -148,13 +138,11 @@ class SimpleClient(SDClient):
                         json.dump(json_packet, outfile)
                     self.record_count += 1 
                 if self.data_format == 'csv':
-                    del json_packet['msg_type']
                     json_packet['lap'] = self.current_lap
-                    # image.save(f"{self.img_dir}/{json_packet['time']}.png")
+                    del json_packet['msg_type']
                     with open(self.csv_file_path, 'a', newline='') as csv_outfile:
                         row_writer = csv.writer(csv_outfile)
                         row_writer.writerow(value for value in json_packet.values())
-                    self.record_count += 1 
                 if self.data_format == "ASL":
                     time_stamp= str(time.time_ns())
                     # image
