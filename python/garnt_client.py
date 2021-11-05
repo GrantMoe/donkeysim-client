@@ -15,20 +15,32 @@ import shutil
 
 class SimpleClient(SDClient):
 
+
     def __init__(self, data_format, address, poll_socket_sleep_time=0.01):
         super().__init__(*address, poll_socket_sleep_time=poll_socket_sleep_time)
         self.data_format = data_format
         self.car_loaded = False
         self.start_recording = False
         self.ctr = Controller()
-        if data_format == 'raw':
+        if data_format in ('csv', 'raw'):
             time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
             self.dir = f'{os.getcwd()}/../data/{time_str}'
-            self.data_dir = f'{self.dir}/data'
+            self.data_dir = f'{self.dir}/{data_format}_data'
             self.img_dir = f'{self.dir}/images'
             os.makedirs(self.data_dir, exist_ok=True)
             os.makedirs(self.img_dir, exist_ok=True)
             self.record_count = 0
+        if data_format == 'csv':
+            self.csv_cols = ["steering_angle", "throttle", "speed", 
+                            "hit", "time", "accel_x", "accel_y", 
+                            "accel_z", "gyro_x", "gyro_y", "gyro_z", 
+                            "gyro_w", "pitch", "yaw", "roll", "cte", 
+                            "activeNode", "totalNodes", "pos_x", 
+                            "pos_y", "pos_z", "vel_x", "vel_y", "vel_z", 
+                            "on_road", "progress_on_shortest_path"]
+            self.csv_file_path = f'{self.data_dir}/data.csv'
+            with open(self.csv_file_path, 'w') as outfile:
+                outfile.write(','.join(self.csv_cols))
         if data_format == 'ASL':
             asl_dir = f'{os.getcwd()}/../data/asl'
             dir_num = 1
@@ -110,6 +122,11 @@ class SimpleClient(SDClient):
                     with open(f'{self.data_dir}/data_{self.record_count:04d}', 'w') as outfile:
                         json.dump(json_packet, outfile)
                     self.record_count += 1 
+                if self.data_format == 'csv':
+                    image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
+                    with open(self.csv_file_path, 'a') as outfile:
+                        csv_string = ','.join(str(json_packet[col]) for col in self.csv_cols)
+                        outfile.write(csv_string)
                 if self.data_format == "ASL":
                     time_stamp= str(time.time_ns())
                     # image
@@ -244,6 +261,7 @@ if __name__ == "__main__":
         ]
 
     format_list = [
+        "csv",
         "raw",
         "ASL"
     ]
@@ -260,7 +278,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--env_name", type=str, default="mini_monaco", help="name of donkey sim environment", choices=env_list
     )
-    parser.add_argument("--data_type", type=str, default="raw", help="recording format", choices=format_list) 
+    parser.add_argument("--data_type", type=str, default="csv", help="recording format", choices=format_list) 
 
     args = parser.parse_args()
 
