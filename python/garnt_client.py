@@ -117,6 +117,9 @@ class SimpleClient(SDClient):
         if json_packet['msg_type'] == "collision_with_starting_line":
             self.current_lap += 1
 
+        if json_packet['msg_type'] != "telemetry":     
+            print("got:", json_packet)
+
         if json_packet['msg_type'] == "telemetry":
             if json_packet['throttle'] > 0.0:
                 self.start_recording = True
@@ -131,15 +134,12 @@ class SimpleClient(SDClient):
                         json.dump(json_packet, outfile)
                     self.record_count += 1 
                 if self.data_format == 'csv':
-                    image.save(f"{self.img_dir}/{json_packet['time']}.png")
+                    del json_packet['msg_type']
                     json_packet['lap'] = self.current_lap
+                    image.save(f"{self.img_dir}/{json_packet['time']}.png")
                     with open(self.csv_file_path, 'a', newline='') as csv_outfile:
                         row_writer = csv.writer(csv_outfile)
-                        row_writer.writerow((str(json_packet[col]) for col in self.csv_cols))
-
-                    # with open(self.csv_file_path, 'a') as csv_outfile:
-                        # csv_string = f"{','.join(str(json_packet[col]) for col in self.csv_cols)}\n"
-                        # csv_outfile.write(csv_string)
+                        row_writer.writerow(value for value in json_packet.values())
                     self.record_count += 1 
                 if self.data_format == "ASL":
                     time_stamp= str(time.time_ns())
@@ -175,8 +175,7 @@ class SimpleClient(SDClient):
                         row_writer = csv.writer(csvfile)
                         row_writer.writerow(imu_data)
 
-        if json_packet['msg_type'] != "telemetry":     
-            print("got:", json_packet)
+
 
 
     def send_controls(self, steering, throttle):
