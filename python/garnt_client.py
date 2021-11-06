@@ -215,15 +215,14 @@ class SimpleClient(SDClient):
 def run_client(env_name, conf):
     host = conf["host"] # "trainmydonkey.com" for virtual racing
     port = conf["port"]
-    # data_type = conf["data_type"]
     client = SimpleClient(address=(host, port), conf=conf,)
 
     time.sleep(1)
 
 
     # # Uncomment to get track names
-    # msg = '{"msg_type" : "get_scene_names"}'
-    # client.send(msg)
+    # get_tracks = '{"msg_type" : "get_scene_names"}'
+    # client.send(get_tracks)
     # time.sleep(1)
     
     # env_list = [
@@ -238,7 +237,7 @@ def run_client(env_name, conf):
     # "circuit_launch"
     # ]
 
-    msg = f'{{ "msg_type" : "load_scene", "scene_name" : "{env_name}" }}'
+    msg = f'{{"msg_type" : "load_scene", "scene_name" : "{env_name}"}}'
     client.send(msg)
     loaded = False
     while(not loaded):
@@ -345,16 +344,36 @@ if __name__ == "__main__":
         "--sim",
         type=str,
         default="sim_path",
-        help="path to unity simulator. maybe be left at default if you would like to start the sim on your own.",
+        help="path to unity simulator",
     )
-    parser.add_argument("--host", type=str, default="127.0.0.1", help="host to use for tcp")
-    parser.add_argument("--port", type=int, default=9091, help="port to use for tcp")
-    parser.add_argument(
-        "--env_name", type=str, default="mini_monaco", help="name of donkey sim environment", choices=env_list
-    )
-    parser.add_argument("--data_type", type=str, default="csv", help="recording format", choices=data_format_list) 
-    parser.add_argument("--image_format", type=str, default="png", help="image format", choices=image_format_list) 
-    parser.add_argument("--image_channels", type=int, default=1, help="image channels", choices=color_list) 
+    parser.add_argument("--host", 
+                        type=str, 
+                        default="127.0.0.1", 
+                        help="host to use for tcp")
+    parser.add_argument("--port", 
+                        type=int, 
+                        default=9091, 
+                        help="port to use for tcp")
+    parser.add_argument("--env_name", 
+                        type=str, 
+                        default="mini_monaco", 
+                        help="name of donkey sim environment", 
+                        choices=env_list)
+    parser.add_argument("--data_type", 
+                        type=str, 
+                        default="csv", 
+                        help="recording format", 
+                        choices=data_format_list) 
+    parser.add_argument("--image_format", 
+                        type=str, 
+                        default="png", 
+                        help="image format", 
+                        choices=image_format_list) 
+    parser.add_argument("--image_channels", 
+                        type=int, 
+                        default=1, 
+                        help="image channels", 
+                        choices=color_list) 
 
 
     args = parser.parse_args()
