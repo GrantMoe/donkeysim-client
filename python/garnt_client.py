@@ -187,8 +187,6 @@ class SimpleClient(SDClient):
                         row_writer.writerow(imu_data)
 
 
-
-
     def send_controls(self, steering, throttle):
         p = { "msg_type" : "control",
                 "steering" : steering.__str__(),
@@ -244,6 +242,8 @@ def run_client(env_name, conf):
         time.sleep(1.0)
         loaded = client.car_loaded           
 
+
+
     # Car config
     car_config = (f'{{ "msg_type" : "car_config", ' 
         f'"body_style" : "{str(conf["body_style"])}", ' 
@@ -256,6 +256,8 @@ def run_client(env_name, conf):
     client.send(car_config)
     time.sleep(1)
 
+
+
     # Camera config
     # set any field to Zero to get the default camera setting.
     # the offset_x moves camera left/right
@@ -263,23 +265,10 @@ def run_client(env_name, conf):
     # the offset_z moves camera forward/back
     # with fish_eye_x/y == 0.0 then you get no distortion
     # img_enc can be one of JPG|PNG|TGA
-    cam_config = (f'{{ ' 
-        '"msg_type" : "cam_config", ' 
-        '"fov" : "0", ' 
-        '"fish_eye_x" : "0.0", ' 
-        '"fish_eye_y" : "0.0", '
-        '"img_w" : "0", '
-        '"img_h" : "0", '
-        f'"img_d" : "{str(conf["image_format"])}", ' 
-        f'"img_enc" : "{str(conf["image_depth"])}", ' 
-        '"offset_x" : "0", ' 
-        '"offset_y" : "0", '
-        '"offset_z" : "0", '
-        '"rot_x" : "0" '
-        '}}')
-    print(cam_config)
-    client.send(cam_config)
+    msg = '{ "msg_type" : "cam_config", "fov" : "90", "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "32", "img_h" : "32", "img_d" : "1", "img_enc" : "PNG", "offset_x" : "0.0", "offset_y" : "0.0", "offset_z" : "0.0", "rot_x" : "0.0" }'
+    client.send(msg)
     time.sleep(1)
+
 
     # Drive car
     do_drive = True
