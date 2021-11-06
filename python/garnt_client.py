@@ -20,23 +20,25 @@ import shutil
 class SimpleClient(SDClient):
 
 
-    def __init__(self, data_format, address, poll_socket_sleep_time=0.01):
+    def __init__(self, address, conf=None, poll_socket_sleep_time=0.01):
         super().__init__(*address, poll_socket_sleep_time=poll_socket_sleep_time)
-        self.data_format = data_format
+        self.data_format = conf['data_type']
         self.car_loaded = False
         self.start_recording = False
         self.ctr = Controller()
-        if data_format in ('csv', 'raw'):
+        self.image_depth = conf['image_depth']
+        self.image_format = conf['image_format']
+        if self.data_format in ('csv', 'raw'):
             time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
             self.dir = f'{os.getcwd()}/../data/{time_str}'
             os.makedirs(self.dir, exist_ok=True)
-        if data_format == 'raw':
-            self.data_dir = f'{self.dir}/{data_format}_data'
+        if self.data_format == 'raw':
+            self.data_dir = f'{self.dir}/{self.data_format}_data'
             os.makedirs(self.data_dir, exist_ok=True)
             self.img_dir = f'{self.dir}/images'
             os.makedirs(self.img_dir, exist_ok=True)
             self.record_count = 0
-        if data_format == 'csv':
+        if self.data_format == 'csv':
             self.img_dir = f'{self.dir}/images'
             os.makedirs(self.img_dir, exist_ok=True)
             self.csv_cols = [
@@ -52,7 +54,7 @@ class SimpleClient(SDClient):
                 row_writer = csv.writer(csv_outfile)
                 row_writer.writerow(self.csv_cols)
             self.current_lap = 0
-        if data_format == 'ASL':
+        if self.data_format == 'ASL':
             asl_dir = f'{os.getcwd()}/../data/asl'
             dir_num = 1
             dir_str = f'DS{dir_num:02}'
@@ -142,9 +144,9 @@ class SimpleClient(SDClient):
                     self.record_count += 1 
                 if self.data_format == 'csv':
                     imgString = json_packet['image']
-                    image = Image.open(BytesIO(base64.b64decode(imgString))).getchannel(0)
-                    image.save(f"{self.img_dir}/{json_packet['time']}.png")
-                    json_packet['image'] = f"{json_packet['time']}.png"
+                    image = Image.open(BytesIO(base64.b64decode(imgString))).getchannel(self.image_depth)
+                    image.save(f"{self.img_dir}/{json_packet['time']}.{self.image_format}")
+                    json_packet['image'] = f"{json_packet['time']}.{self.image_format}"
                     json_packet['lap'] = self.current_lap
                     del json_packet['msg_type']
                     with open(self.csv_file_path, 'a', newline='') as csv_outfile:
@@ -214,7 +216,8 @@ def run_client(env_name, conf):
     host = conf["host"] # "trainmydonkey.com" for virtual racing
     port = conf["port"]
     data_type = conf["data_type"]
-    client = SimpleClient(data_type, address=(host, port))
+    image_depth = conf["image_depth"]
+    client = SimpleClient(address=(host, port), conf=conf,)
 
     time.sleep(1)
 
@@ -237,7 +240,11 @@ def run_client(env_name, conf):
     # the offset_z moves camera forward/back
     # with fish_eye_x/y == 0.0 then you get no distortion
     # img_enc can be one of JPG|PNG|TGA
-    msg = '{ "msg_type" : "cam_config", "fov" : "0", "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "0", "img_h" : "0", "img_d" : "1", "img_enc" : "PNG", "offset_x" : "0", "offset_y" : "0", "offset_z" : "0", "rot_x" : "0" }'
+    msg = f'{{ "msg_type" : "cam_config", "fov" : "0", \
+         "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "0", \
+             "img_h" : "0", "img_d" : "{image_depth}",\
+                 "img_enc" : "PNG", "offset_x" : "0", "offset_y" : "0",\
+                     "offset_z" : "0", "rot_x" : "0" }}'
     # msg = {
     #     "msg_type" : "cam_config",
     #     "fov" : "0", 
@@ -297,10 +304,21 @@ if __name__ == "__main__":
         "circuit_launch"
         ]
 
-    format_list = [
+    data_format_list = [
         "csv",
         "raw",
         "ASL"
+    ]
+
+    image_format_list = [
+        'png',
+        'jpg',
+        'tga'
+    ]
+
+    color_list = [
+        "1 (greyscale)",
+        "3 (RGB)"
     ]
 
     parser = argparse.ArgumentParser(description="garnt_client")
@@ -315,7 +333,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--env_name", type=str, default="mini_monaco", help="name of donkey sim environment", choices=env_list
     )
-    parser.add_argument("--data_type", type=str, default="csv", help="recording format", choices=format_list) 
+    parser.add_argument("--data_type", type=str, default="csv", help="recording format", choices=data_format_list) 
+    parser.add_argument("--image_format", type=str, default="png", help="image format", choices=image_format_list) 
+    parser.add_argument("--image_channels", type=int, default=1, help="image channels", choices=color_list) 
+
 
     args = parser.parse_args()
 
@@ -333,6 +354,8 @@ if __name__ == "__main__":
         "bio": "custom client",
         "guid": str(uuid.uuid4()),
         "start_delay": 1,
+        "image_format": args.image_format,
+        "image_depth": args.image_channels,
     }
 
     run_client(args.env_name, conf)
