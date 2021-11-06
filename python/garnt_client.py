@@ -200,7 +200,7 @@ class SimpleClient(SDClient):
         time.sleep(self.poll_socket_sleep_sec)
 
 
-    def update(self, st_scale=1.0, th_scale=0.5):
+    def update(self, st_scale=1.0, th_scale=1.0):
         # get normed inputs
         self.ctr.update()
         st = self.ctr.norm('left_stick_horz', -1.0, 1.0)
@@ -270,8 +270,8 @@ def run_client(env_name, conf):
         '"fish_eye_y" : "0.0", '
         '"img_w" : "0", '
         '"img_h" : "0", '
-        f'"img_d" : "{str(conf["image_depth"])}", ' 
-        '"img_enc" : "JPG", ' 
+        f'"img_d" : "{str(conf["image_format"])}", ' 
+        f'"img_enc" : "{str(conf["image_depth"])}", ' 
         '"offset_x" : "0", ' 
         '"offset_y" : "0", '
         '"offset_z" : "0", '
@@ -329,9 +329,9 @@ if __name__ == "__main__":
     ]
 
     image_format_list = [
-        'png',
-        'jpg',
-        'tga'
+        'PNG',
+        'JPG',
+        'TGA'
     ]
 
     color_list = [
@@ -366,7 +366,7 @@ if __name__ == "__main__":
                         choices=data_format_list) 
     parser.add_argument("--image_format", 
                         type=str, 
-                        default="png", 
+                        default="PNG", 
                         help="image format", 
                         choices=image_format_list) 
     parser.add_argument("--image_channels", 
