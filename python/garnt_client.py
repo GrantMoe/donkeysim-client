@@ -29,13 +29,16 @@ class SimpleClient(SDClient):
         if data_format in ('csv', 'raw'):
             time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
             self.dir = f'{os.getcwd()}/../data/{time_str}'
+            os.makedirs(self.dir, exist_ok=True)
+        if data_format == 'raw':
             self.data_dir = f'{self.dir}/{data_format}_data'
             os.makedirs(self.data_dir, exist_ok=True)
-        if data_format == 'raw':
             self.img_dir = f'{self.dir}/images'
             os.makedirs(self.img_dir, exist_ok=True)
             self.record_count = 0
         if data_format == 'csv':
+            self.img_dir = f'{self.dir}/images'
+            os.makedirs(self.img_dir, exist_ok=True)
             self.csv_cols = [
                 'steering_angle', 'throttle', 'speed', 'image', 'hit', 
                 'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
@@ -44,7 +47,7 @@ class SimpleClient(SDClient):
                 'pos_z', 'vel_x', 'vel_y', 'vel_z', 'on_road', 
                 'progress_on_shortest_path', 'lap'
                 ]
-            self.csv_file_path = f'{self.data_dir}/data.csv'
+            self.csv_file_path = f'{self.dir}/data.csv'
             with open(self.csv_file_path, 'w', newline='') as csv_outfile:
                 row_writer = csv.writer(csv_outfile)
                 row_writer.writerow(self.csv_cols)
@@ -138,6 +141,10 @@ class SimpleClient(SDClient):
                         json.dump(json_packet, outfile)
                     self.record_count += 1 
                 if self.data_format == 'csv':
+                    imgString = json_packet['image']
+                    image = Image.open(BytesIO(base64.b64decode(imgString))).getchannel(0)
+                    image.save(f"{self.img_dir}/{json_packet['time']}.png")
+                    json_packet['image'] = f"{json_packet['time']}.png"
                     json_packet['lap'] = self.current_lap
                     del json_packet['msg_type']
                     with open(self.csv_file_path, 'a', newline='') as csv_outfile:
@@ -231,7 +238,22 @@ def run_client(env_name, conf):
     # with fish_eye_x/y == 0.0 then you get no distortion
     # img_enc can be one of JPG|PNG|TGA
     msg = '{ "msg_type" : "cam_config", "fov" : "0", "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "0", "img_h" : "0", "img_d" : "1", "img_enc" : "PNG", "offset_x" : "0", "offset_y" : "0", "offset_z" : "0", "rot_x" : "0" }'
-    client.send(msg)
+    # msg = {
+    #     "msg_type" : "cam_config",
+    #     "fov" : "0", 
+    #     "fish_eye_x" : "0.0",
+    #     "fish_eye_y" : "0.0",
+    #     "img_w" : "0",
+    #     "img_h" : "0",
+    #     "img_d" : "1",
+    #     "img_enc" : "JPG",
+    #     "offset_x" : "0",
+    #     "offset_y" : "0",
+    #     "offset_z" : "0",
+    #     "rot_x" : "0"
+    #     }
+    
+    client.send(str(msg))
     time.sleep(1)
 
     # Drive car
