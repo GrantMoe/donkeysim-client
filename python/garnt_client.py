@@ -215,11 +215,28 @@ class SimpleClient(SDClient):
 def run_client(env_name, conf):
     host = conf["host"] # "trainmydonkey.com" for virtual racing
     port = conf["port"]
-    data_type = conf["data_type"]
-    image_depth = conf["image_depth"]
+    # data_type = conf["data_type"]
     client = SimpleClient(address=(host, port), conf=conf,)
 
     time.sleep(1)
+
+
+    # # Uncomment to get track names
+    # msg = '{"msg_type" : "get_scene_names"}'
+    # client.send(msg)
+    # time.sleep(1)
+    
+    # env_list = [
+    # "generated_road", 
+    # "warehouse", 
+    # "sparkfun_avc", 
+    # "generated_track", 
+    # "roboracingleague_1", 
+    # "waveshare", 
+    # "mini_monaco", 
+    # "warren", 
+    # "circuit_launch"
+    # ]
 
     msg = f'{{ "msg_type" : "load_scene", "scene_name" : "{env_name}" }}'
     client.send(msg)
@@ -227,10 +244,17 @@ def run_client(env_name, conf):
     while(not loaded):
         time.sleep(1.0)
         loaded = client.car_loaded           
-        
+
     # Car config
-    msg = f'{{ "msg_type" : "car_config", "body_style" : "{conf["body_style"]}", "body_r" : "{conf["body_rgb"][0]}", "body_g" : "{conf["body_rgb"][1]}", "body_b" : "{conf["body_rgb"][2]}", "car_name" : "{conf["car_name"]}", "font_size" : "{conf["font_size"]}" }}'
-    client.send(msg)
+    car_config = (f'{{ "msg_type" : "car_config", ' 
+        f'"body_style" : "{str(conf["body_style"])}", ' 
+        f'"body_r" : "{str(conf["body_rgb"][0])}", ' 
+        f'"body_g" : "{str(conf["body_rgb"][1])}", ' 
+        f'"body_b" : "{str(conf["body_rgb"][2])}", ' 
+        f'"car_name" : "{str(conf["car_name"])}", ' 
+        f'"font_size" : "{str(conf["font_size"])}"}}')
+    msg = car_config
+    client.send(car_config)
     time.sleep(1)
 
     # Camera config
@@ -240,27 +264,22 @@ def run_client(env_name, conf):
     # the offset_z moves camera forward/back
     # with fish_eye_x/y == 0.0 then you get no distortion
     # img_enc can be one of JPG|PNG|TGA
-    msg = f'{{ "msg_type" : "cam_config", "fov" : "0", \
-         "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "0", \
-             "img_h" : "0", "img_d" : "{image_depth}",\
-                 "img_enc" : "PNG", "offset_x" : "0", "offset_y" : "0",\
-                     "offset_z" : "0", "rot_x" : "0" }}'
-    # msg = {
-    #     "msg_type" : "cam_config",
-    #     "fov" : "0", 
-    #     "fish_eye_x" : "0.0",
-    #     "fish_eye_y" : "0.0",
-    #     "img_w" : "0",
-    #     "img_h" : "0",
-    #     "img_d" : "1",
-    #     "img_enc" : "JPG",
-    #     "offset_x" : "0",
-    #     "offset_y" : "0",
-    #     "offset_z" : "0",
-    #     "rot_x" : "0"
-    #     }
-    
-    client.send(str(msg))
+    cam_config = (f'{{ ' 
+        '"msg_type" : "cam_config", ' 
+        '"fov" : "0", ' 
+        '"fish_eye_x" : "0.0", ' 
+        '"fish_eye_y" : "0.0", '
+        '"img_w" : "0", '
+        '"img_h" : "0", '
+        f'"img_d" : "{str(conf["image_depth"])}", ' 
+        '"img_enc" : "JPG", ' 
+        '"offset_x" : "0", ' 
+        '"offset_y" : "0", '
+        '"offset_z" : "0", '
+        '"rot_x" : "0" '
+        '}}')
+    print(cam_config)
+    client.send(cam_config)
     time.sleep(1)
 
     # Drive car
