@@ -14,6 +14,7 @@ from PIL import Image
 from gym_donkeycar.core.sim_client import SDClient
 from controller import Controller
 from autopilot import Autopilot
+# from replay import Replay
 import csv
 import shutil
 
@@ -34,6 +35,11 @@ class SimpleClient(SDClient):
             self.ctr = Autopilot(conf['model_path'])
         elif self.drive_mode == 'manual':
             self.ctr = Controller()
+        # elif self.drive_mode == 'replay':
+        #     # self.ctr = Controller() 
+        #     self.ctr = Replay(conf['replay_path'])
+        #     # self.update_ready = False
+        #     self.current_time = 0
         if self.data_format in ('csv', 'raw'):
             time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
             self.dir = f'{os.getcwd()}/../data/{time_str}'
@@ -126,6 +132,7 @@ class SimpleClient(SDClient):
 
 
     def on_msg_recv(self, json_packet):
+        
 
         if json_packet['msg_type'] != "telemetry":     
             print("got:", json_packet)
@@ -148,18 +155,12 @@ class SimpleClient(SDClient):
                 self.start_recording = True
             if self.start_recording:
                 if self.data_format == "raw":
-                    # imgString = json_packet['image']
-                    # image = Image.open(BytesIO(base64.b64decode(imgString)))
                     image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
                     del json_packet['image']
                     with open(f'{self.data_dir}/data_{self.record_count:04d}', 'w') as outfile:
                         json.dump(json_packet, outfile)
                     self.record_count += 1 
                 if self.data_format == 'csv':
-                    # imgString = json_packet['image']
-                    # image = Image.open(BytesIO(base64.b64decode(imgString))).getchannel(self.image_depth)
-                    # if self.drive_mode == 'auto':
-                        # self.current_image = image.copy()
                     image.save(f"{self.img_dir}/{json_packet['time']}.{self.image_format}")
                     json_packet['image'] = f"{json_packet['time']}.{self.image_format}"
                     json_packet['lap'] = self.current_lap
@@ -201,6 +202,10 @@ class SimpleClient(SDClient):
                         row_writer = csv.writer(csvfile)
                         row_writer.writerow(imu_data)
 
+            # if self.drive_mode == 'replay':
+            #     self.current_time = json_packet['time']
+
+
 
     def send_controls(self, steering, throttle):
         print(f'{steering}, {throttle}')
@@ -228,6 +233,10 @@ class SimpleClient(SDClient):
             st = 0.0
         return st*st_scale, (fw + rv)*th_scale
 
+    # def replay_update(self):
+    #     if self.update_ready: 
+    #         return self.ctr.next_record(self.current_time)
+
     def update(self):
         if self.drive_mode == 'auto':
             if not self.current_image:
@@ -236,7 +245,10 @@ class SimpleClient(SDClient):
             steering, throttle = self.auto_update()
         elif self.drive_mode == 'manual':
             steering, throttle = self.manual_update()
+        # elif self.drive_mode == 'replay':
+            # steering, throttle = self.replay_update()
         self.send_controls(steering, throttle)
+            
 
 # Create client and connect it with the simulator
 def run_client(env_name, conf):
@@ -359,7 +371,8 @@ if __name__ == "__main__":
 
     drive_mode_list = [
         "manual",
-        "auto"
+        "auto",
+        # "replay"
     ]
 
     parser = argparse.ArgumentParser(description="garnt_client")
@@ -404,9 +417,11 @@ if __name__ == "__main__":
                         choices=drive_mode_list) 
     parser.add_argument("--model_path", 
                         type=str, 
-                        # default="manual", 
                         help="path to model for inferencing",) 
-                        # choices=color_list) 
+    # parser.add_argument("--replay_path", 
+    #                     type=str, 
+    #                     help="path to csv file with recorded inputs",) 
+    
 
 
     args = parser.parse_args()
@@ -428,7 +443,8 @@ if __name__ == "__main__":
         "image_format": args.image_format,
         "image_depth": args.image_channels,
         "drive_mode": args.drive_mode,
-        "model_path": args.model_path
+        "model_path": args.model_path,
+        # "replay_path": args.replay_path
     }
 
     run_client(args.env_name, conf)
