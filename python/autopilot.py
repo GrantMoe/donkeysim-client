@@ -6,9 +6,10 @@ from tensorflow.keras.preprocessing.image import img_to_array
 
 class Autopilot:
 
-    def __init__(self, model):
-        pass
+    def __init__(self, model_path):
+        self.model = load_model(model_path)
 
+    ## Keeping this really simple for now
     def infer(self, img):
-        pass
+        return self.model(img.reshape((1,) + img.shape)[0])
 
