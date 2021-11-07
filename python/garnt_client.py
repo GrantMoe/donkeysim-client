@@ -203,6 +203,7 @@ class SimpleClient(SDClient):
 
 
     def send_controls(self, steering, throttle):
+        print(f'{steering}, {throttle}')
         p = { "msg_type" : "control",
                 "steering" : steering.__str__(),
                 "throttle" : throttle.__str__(),
@@ -233,8 +234,6 @@ class SimpleClient(SDClient):
                 print("Waiting for first image")
                 return 
             steering, throttle = self.auto_update()
-            print(f'auto steering steering, throttle')
-            print(f'{steering}, {throttle}')
         elif self.drive_mode == 'manual':
             steering, throttle = self.manual_update()
         self.send_controls(steering, throttle)
