@@ -13,6 +13,7 @@ import base64
 from PIL import Image
 from gym_donkeycar.core.sim_client import SDClient
 from controller import Controller
+from autopilot import Autopilot
 import csv
 import shutil
 
@@ -25,9 +26,14 @@ class SimpleClient(SDClient):
         self.data_format = conf['data_type']
         self.car_loaded = False
         self.start_recording = False
-        self.ctr = Controller()
         self.image_depth = conf['image_depth']
         self.image_format = conf['image_format']
+        self.drive_mode = conf['drive_mode']
+        if self.drive_mode == 'auto':
+            self.current_image = None
+            self.ctr = Autopilot(conf['model_path'])
+        elif self.drive_mode == 'manual':
+            self.ctr = Controller()
         if self.data_format in ('csv', 'raw'):
             time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
             self.dir = f'{os.getcwd()}/../data/{time_str}'
@@ -131,20 +137,29 @@ class SimpleClient(SDClient):
             self.current_lap += 1
 
         if json_packet['msg_type'] == "telemetry":
+            imgString = json_packet['image']
+            image = Image.open(BytesIO(base64.b64decode(imgString))).getchannel(self.image_depth)
+            if self.drive_mode == "auto":
+                if not self.current_image:
+                    print('got first image')
+                self.current_image = image.copy()
+
             if json_packet['throttle'] > 0.0:
                 self.start_recording = True
             if self.start_recording:
                 if self.data_format == "raw":
-                    imgString = json_packet['image']
-                    image = Image.open(BytesIO(base64.b64decode(imgString)))
+                    # imgString = json_packet['image']
+                    # image = Image.open(BytesIO(base64.b64decode(imgString)))
                     image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
                     del json_packet['image']
                     with open(f'{self.data_dir}/data_{self.record_count:04d}', 'w') as outfile:
                         json.dump(json_packet, outfile)
                     self.record_count += 1 
                 if self.data_format == 'csv':
-                    imgString = json_packet['image']
-                    image = Image.open(BytesIO(base64.b64decode(imgString))).getchannel(self.image_depth)
+                    # imgString = json_packet['image']
+                    # image = Image.open(BytesIO(base64.b64decode(imgString))).getchannel(self.image_depth)
+                    # if self.drive_mode == 'auto':
+                        # self.current_image = image.copy()
                     image.save(f"{self.img_dir}/{json_packet['time']}.{self.image_format}")
                     json_packet['image'] = f"{json_packet['time']}.{self.image_format}"
                     json_packet['lap'] = self.current_lap
@@ -198,16 +213,31 @@ class SimpleClient(SDClient):
         time.sleep(self.poll_socket_sleep_sec)
 
 
-    def update(self, st_scale=1.0, th_scale=1.0):
-        # get normed inputs
+    def auto_update(self):
+        # get inferences from autopilot
+        return self.ctr.infer(self.current_image)
+
+    def manual_update(self, st_scale=1.0, th_scale=1.0):
+        # get normed inputs from controller
         self.ctr.update()
         st = self.ctr.norm('left_stick_horz', -1.0, 1.0)
         fw = self.ctr.norm('right_trigger', 0.0, 1.0)
         rv = self.ctr.norm('left_trigger', 0.0, -1.0)
         if abs(st) < 0.07:
             st = 0.0
-        self.send_controls(st*st_scale, (fw + rv)*th_scale)
+        return st*st_scale, (fw + rv)*th_scale
 
+    def update(self):
+        if self.drive_mode == 'auto':
+            if not self.current_image:
+                print("Waiting for first image")
+                return 
+            steering, throttle = self.auto_update()
+            print(f'auto steering steering, throttle')
+            print(f'{steering}, {throttle}')
+        elif self.drive_mode == 'manual':
+            steering, throttle = self.manual_update()
+        self.send_controls(steering, throttle)
 
 # Create client and connect it with the simulator
 def run_client(env_name, conf):
@@ -328,6 +358,11 @@ if __name__ == "__main__":
         "3 (RGB)"
     ]
 
+    drive_mode_list = [
+        "manual",
+        "auto"
+    ]
+
     parser = argparse.ArgumentParser(description="garnt_client")
     parser.add_argument(
         "--sim",
@@ -363,6 +398,16 @@ if __name__ == "__main__":
                         default=1, 
                         help="image channels", 
                         choices=color_list) 
+    parser.add_argument("--drive_mode", 
+                        type=str, 
+                        default="manual", 
+                        help="manual control or autopilot", 
+                        choices=drive_mode_list) 
+    parser.add_argument("--model_path", 
+                        type=str, 
+                        # default="manual", 
+                        help="path to model for inferencing",) 
+                        # choices=color_list) 
 
 
     args = parser.parse_args()
@@ -383,6 +428,8 @@ if __name__ == "__main__":
         "start_delay": 1,
         "image_format": args.image_format,
         "image_depth": args.image_channels,
+        "drive_mode": args.drive_mode,
+        "model_path": args.model_path
     }
 
     run_client(args.env_name, conf)
