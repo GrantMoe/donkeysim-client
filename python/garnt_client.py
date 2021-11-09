@@ -221,7 +221,10 @@ class SimpleClient(SDClient):
 
     def auto_update(self):
         # get inferences from autopilot
-        return self.ctr.infer(self.current_image)
+        steering, throttle = self.ctr.infer(self.current_image)
+        # if throttle > 0.5:
+            # throttle = 0.5
+        return steering, throttle
 
     def manual_update(self, st_scale=1.0, th_scale=1.0):
         # get normed inputs from controller
@@ -306,7 +309,7 @@ def run_client(env_name, conf):
     # the offset_z moves camera forward/back
     # with fish_eye_x/y == 0.0 then you get no distortion
     # img_enc can be one of JPG|PNG|TGA
-    msg = '{ "msg_type" : "cam_config", "fov" : "0", "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "32", "img_h" : "32", "img_d" : "1", "img_enc" : "PNG", "offset_x" : "0.0", "offset_y" : "0.0", "offset_z" : "0.0", "rot_x" : "0.0" }'
+    msg = '{ "msg_type" : "cam_config", "fov" : "0", "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "0", "img_h" : "0", "img_d" : "1", "img_enc" : "PNG", "offset_x" : "0.0", "offset_y" : "0.0", "offset_z" : "0.0", "rot_x" : "0.0" }'
     client.send(msg)
     time.sleep(1)
 
