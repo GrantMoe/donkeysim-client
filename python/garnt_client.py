@@ -222,8 +222,8 @@ class SimpleClient(SDClient):
     def auto_update(self):
         # get inferences from autopilot
         steering, throttle = self.ctr.infer(self.current_image)
-        # if throttle > 0.5:
-            # throttle = 0.5
+        # if throttle > 0.8:
+        #     throttle = 0.8
         return steering, throttle
 
     def manual_update(self, st_scale=1.0, th_scale=1.0):
@@ -251,6 +251,12 @@ class SimpleClient(SDClient):
         # elif self.drive_mode == 'replay':
             # steering, throttle = self.replay_update()
         self.send_controls(steering, throttle)
+
+    def stop(self):
+        print(f'Client stopping after {self.current_lap-1} laps.')
+        super().stop()
+
+    
             
 
 # Create client and connect it with the simulator

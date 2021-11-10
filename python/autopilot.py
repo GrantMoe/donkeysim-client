@@ -4,6 +4,7 @@
 # import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
+# import gc
 
 class Autopilot:
 
@@ -21,4 +22,5 @@ class Autopilot:
     def infer(self, img):
         arr = self.convert_image(img)
         outputs = self.model.predict(arr.reshape((1,) + arr.shape))
+        # _ = gc.collect()
         return outputs[0][0], outputs[0][1]
