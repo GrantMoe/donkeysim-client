@@ -4,16 +4,15 @@
 # import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
+from tensorflow.python.keras.backend import batch_dot
 # import gc
 
 class Autopilot:
 
     def __init__(self, model_path):
-        print(f'model path: {model_path}')
-        print(type(model_path))
-        # self.model = load_model(model_path)
+        # print(f'model path: {model_path}')
+        # print(type(model_path))
         self.model = load_model(model_path)
-
 
     def convert_image(self, img):
         img_array = img_to_array(img)
@@ -21,6 +20,7 @@ class Autopilot:
 
     def infer(self, img):
         arr = self.convert_image(img)
-        outputs = self.model.predict(arr.reshape((1,) + arr.shape))
+        outputs = self.model.predict(arr.reshape((1,)+arr.shape), 
+                                    batch_size=1)
         # _ = gc.collect()
         return outputs[0][0], outputs[0][1]
