@@ -40,10 +40,12 @@ class SimpleClient(SDClient):
                 self.last_update = time.time()
         if self.data_format == 'tub':
             self.recorder = TubRecorder(self.image_format, self.image_depth)
-        if self.data_format == 'CSV':
+        elif self.data_format == 'CSV':
             self.recorder = CSVRecorder(self.image_format, self.image_depth)
-        if self.data_format == 'ASL':
+        elif self.data_format == 'ASL':
             self.recorder = ASLRecorder(self.image_format, self.image_depth)
+        else:
+            self.recorder = None
 
 
     def on_msg_recv(self, json_packet):
@@ -60,7 +62,7 @@ class SimpleClient(SDClient):
                 self.current_image = Image.open(
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
-            if json_packet['throttle'] > 0.0:
+            if self.recorder and json_packet['throttle'] > 0.0:
                 self.start_recording = True
             if self.start_recording:
                 json_packet['lap'] = self.current_lap
