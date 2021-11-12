@@ -13,7 +13,7 @@ import base64
 from PIL import Image
 from gym_donkeycar.core.sim_client import SDClient
 from controller import Controller
-from autopilot import Autopilot
+from autopilot import Autopilot, LineFollower
 import config
 from sim_recorder import ASLRecorder, CSVRecorder, TubRecorder
 
@@ -31,6 +31,9 @@ class SimpleClient(SDClient):
         if self.drive_mode == 'auto':
             self.current_image = None
             self.ctr = Autopilot(conf['model_path'])
+        if self.drive_mode == 'linefollow':
+            self.ctr = LineFollower()
+            self.cte = 0
         elif self.drive_mode in ('manual', 'telem_test'):
             self.ctr = Controller(ctr_type=conf['controller_type'], 
                                   path=conf['controller_path'])
@@ -62,6 +65,8 @@ class SimpleClient(SDClient):
                 self.current_image = Image.open(
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
+            if self.drive_mode == 'linefollow':
+                self.cte = json_packet['cte']
             if self.recorder and json_packet['throttle'] > 0.0:
                 self.start_recording = True
             if self.start_recording:
@@ -69,9 +74,10 @@ class SimpleClient(SDClient):
                 self.recorder.record(json_packet)
             if self.drive_mode == 'telem_test':
                 ## report a bunch of stuff I'm curious about
-                json_keys = ['speed',' vel_x', 'vel_y', 'vel_z', 
-                    'accel_x', 'accel_y', 'accel_z', 'gyro_x', 'gyro_y',
-                    'gyro_z','gyro_w', 'pitch', 'yaw', 'roll',]
+                # json_keys = ['speed',' vel_x', 'vel_y', 'vel_z', 
+                #     'accel_x', 'accel_y', 'accel_z', 'gyro_x', 'gyro_y',
+                #     'gyro_z','gyro_w', 'pitch', 'yaw', 'roll',]
+                json_keys = ['steering_angle', 'cte']
                 current_time = time.time()
                 if current_time - self.last_update >= self.update_delay:
                     os.system('clear')
@@ -114,6 +120,14 @@ class SimpleClient(SDClient):
             # throttle = 0.5
         return steering, throttle
 
+    def linefollow_update(self):
+        steering, throttle = self.ctr.update(self.cte)
+        if throttle < 0.1:
+            throttle = 0.1
+        if throttle > 1.0:
+            throttle = 1.0
+        return steering, throttle
+
     def manual_update(self, st_scale=1.0, th_scale=1.0):
         # get normed inputs from controller
         self.ctr.update()
@@ -130,6 +144,8 @@ class SimpleClient(SDClient):
                 print("Waiting for first image")
                 return 
             steering, throttle = self.auto_update()
+        elif self.drive_mode == 'linefollow':
+            steering, throttle = self.linefollow_update()
         elif self.drive_mode in ('manual', 'telem_test'):
             steering, throttle = self.manual_update()
         self.send_controls(steering, throttle)

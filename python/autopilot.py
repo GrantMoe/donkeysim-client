@@ -23,3 +23,30 @@ class Autopilot:
         outputs = self.model.predict(arr.reshape((1,)+arr.shape), 
                                    batch_size=1)
         return outputs[0][0], outputs[0][1]
+
+class LineFollower:
+
+    def __init__(self):
+        # put PID stuff here.
+        # self.steering_modifier = 1
+        self.steering = 0
+        self.throttle = 0
+        self.previous_cte = 0
+
+    def update(self, cte):
+        # steering
+        if cte < 0:
+            self.steering = 1.0
+        elif cte > 0:
+            self.steering = -1.0
+        else:
+            self.steering = 0.0
+        # throttle
+        if abs(cte) > abs(self.previous_cte):
+            self.throttle -= 0.01
+        elif abs(cte) < abs(self.previous_cte):
+            self.throttle += 0.01
+        self.previous_cte = cte
+        return self.steering, self.throttle
+        
+

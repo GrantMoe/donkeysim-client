@@ -85,6 +85,7 @@ image_depths = [
 drive_modes = [
     'manual', # default
     'auto',
-    'telem_test'
+    'linefollow',
+    'telem_test',
 ]
 
