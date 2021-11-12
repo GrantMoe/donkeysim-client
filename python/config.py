@@ -66,7 +66,7 @@ tracks = [
 
 data_formats = [
     'None', # default
-    'csv', # capstone
+    'CSV', # capstone
     'tub', # Donkey Car
     'ASL', # Slam
 ]

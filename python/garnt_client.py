@@ -14,9 +14,8 @@ from PIL import Image
 from gym_donkeycar.core.sim_client import SDClient
 from controller import Controller
 from autopilot import Autopilot
-import csv
-import shutil
 import config
+from sim_recorder import ASLRecorder, CSVRecorder, TubRecorder
 
 class SimpleClient(SDClient):
 
@@ -39,167 +38,33 @@ class SimpleClient(SDClient):
                 self.update_delay = 1.0
                 self.prev_node = None
                 self.last_update = time.time()
-        if self.data_format in ('csv', 'tub'):
-            time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
-            self.dir = f'{os.getcwd()}/../data/{time_str}'
-            os.makedirs(self.dir, exist_ok=True)
         if self.data_format == 'tub':
-            self.data_dir = f'{self.dir}/{self.data_format}_data'
-            os.makedirs(self.data_dir, exist_ok=True)
-            self.img_dir = f'{self.dir}/images'
-            os.makedirs(self.img_dir, exist_ok=True)
-            self.record_count = 0
-        if self.data_format == 'csv':
-            self.img_dir = f'{self.dir}/images'
-            os.makedirs(self.img_dir, exist_ok=True)
-            self.csv_cols = [
-                'steering_angle', 'throttle', 'speed', 'image', 'hit', 
-                'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
-                'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll', 
-                'cte', 'activeNode', 'totalNodes', 'pos_x', 'pos_y', 
-                'pos_z', 'vel_x', 'vel_y', 'vel_z', 'on_road', 
-                'progress_on_shortest_path', 'lap'
-                ]
-            self.csv_file_path = f'{self.dir}/data.csv'
-            with open(self.csv_file_path, 'w', newline='') as csv_outfile:
-                row_writer = csv.writer(csv_outfile)
-                row_writer.writerow(self.csv_cols)
-            # self.current_lap = 0
+            self.recorder = TubRecorder(self.image_format, self.image_depth)
+        if self.data_format == 'CSV':
+            self.recorder = CSVRecorder(self.image_format, self.image_depth)
         if self.data_format == 'ASL':
-            asl_dir = f'{os.getcwd()}/../data/asl'
-            dir_num = 1
-            dir_str = f'DS{dir_num:02}'
-            self.dir = f'{asl_dir}/{dir_str}'
-            while os.path.isdir(self.dir):
-                dir_num += 1
-                dir_str = f'DS{dir_num:02}'
-                self.dir = f'{os.getcwd()}/../data/asl/{dir_str}'
-            os.makedirs(self.dir)
-            # add entry to example .sh file
-            sh_file = '/home/grant/projects/ORB_SLAM3/Examples/sim_examples.sh'
-            sh_str = (
-                f'./Monocular-Inertial/mono_inertial_euroc'
-                f' ../Vocabulary/ORBvoc.txt'
-                f' "$pathDatasetDonkeySim"/Monocular-Inertial/DonkeySim.yaml'
-                f' "$pathDatasetDonkeySim"/{dir_str}'
-                f' "$pathDatasetDonkeySim"/Monocular-Inertial/DonkeySim_Timestamps/{dir_str}.txt'
-                f' dataset-{dir_str}_monoi'
-            )
-            with open(sh_file, 'a') as f:
-                f.write(f'\n\necho "Launching {dir_str} with Monocular-Inertial sensor"')
-                f.write(f'\n{sh_str}')
-            self.mav_dir = f'{self.dir}/mav0'
-            self.cam_dir = f'{self.mav_dir}/cam0'
-            self.imu_dir = f'{self.mav_dir}/imu0'
-            self.img_dir = f'{self.cam_dir}/data'
-            os.makedirs(self.mav_dir)
-            os.makedirs(self.cam_dir)
-            os.makedirs(self.imu_dir)
-            os.makedirs(self.img_dir)
-            # copy yaml files
-            shutil.copy(f'{asl_dir}/body.yaml', self.mav_dir)
-            shutil.copy(f'{asl_dir}/cam_sensor.yaml', f'{self.cam_dir}/sensor.yaml')
-            shutil.copy(f'{asl_dir}/imu_sensor.yaml', f'{self.imu_dir}/sensor.yaml')
-            # create cam and imu data.csv files
-            self.cam_csv = f'{self.cam_dir}/data.csv'
-            self.imu_csv = f'{self.imu_dir}/data.csv'
-            with open(self.cam_csv, 'w', newline='') as csvfile:
-                row_writer = csv.writer(csvfile)
-                row_writer.writerow(['#timestamp [ns]', 'filename'])
-            with open(self.imu_csv, 'w', newline='') as csvfile:
-                row_writer = csv.writer(csvfile)
-                row_writer.writerow(['#timestamp [ns]', 
-                                    'w_RS_S_x [rad s^-1]', 
-                                    'w_RS_S_y [rad s^-1]', 
-                                    'w_RS_S_z [rad s^-1]', 
-                                    'a_RS_S_x [m s^-2]', 
-                                    'a_RS_S_y [m s^-2]',
-                                    'a_RS_S_z [m s^-2]'
-                                    ])
-            # create timestamp files
-            cam_ts_dir = f'{asl_dir}/Monocular-Inertial/DonkeySim_Timestamps'
-            self.cam_ts_file = f'{cam_ts_dir}/{dir_str}.txt'
-            with open(self.cam_ts_file, 'w') as stampfile:
-                pass
-            imu_ts_dir = f'{asl_dir}/Monocular-Inertial/DonkeySim_IMU'
-            self.imu_ts_file = f'{imu_ts_dir}/{dir_str}.txt'
-            with open(self.imu_ts_file, 'w', newline='') as stampfile:
-                stampfile.write('#timestamp [ns],w_RS_S_x [rad s^-1],'
-                                'w_RS_S_y [rad s^-1],w_RS_S_z [rad s^-1],'
-                                'a_RS_S_x [m s^-2],a_RS_S_y [m s^-2],'
-                                'a_RS_S_z [m s^-2]\n')
+            self.recorder = ASLRecorder(self.image_format, self.image_depth)
 
 
     def on_msg_recv(self, json_packet):
         if json_packet['msg_type'] != "telemetry":     
             print("got:", json_packet)
-
         if json_packet['msg_type'] == "car_loaded":
             self.car_loaded = True
-
         if json_packet['msg_type'] == "collision_with_starting_line":
             self.current_lap += 1
-
         if json_packet['msg_type'] == "telemetry":
-            imgString = json_packet['image']
-            image = Image.open(BytesIO(base64.b64decode(imgString))).getchannel(self.image_depth)
             if self.drive_mode == "auto":
                 if not self.current_image:
                     print('got first image')
-                self.current_image = image.copy()
-                # return # skip the recording
-
+                self.current_image = Image.open(
+                    BytesIO(base64.b64decode(json_packet['image']))
+                    ).getchannel(self.image_depth)
             if json_packet['throttle'] > 0.0:
                 self.start_recording = True
             if self.start_recording:
-                if self.data_format == "tub":
-                    image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
-                    del json_packet['image']
-                    with open(f'{self.data_dir}/data_{self.record_count:04d}', 'w') as outfile:
-                        json.dump(json_packet, outfile)
-                    self.record_count += 1 
-                if self.data_format == 'csv':
-                    image.save(f"{self.img_dir}/{json_packet['time']}.{self.image_format}")
-                    json_packet['image'] = f"{json_packet['time']}.{self.image_format}"
-                    json_packet['lap'] = self.current_lap
-                    del json_packet['msg_type']
-                    with open(self.csv_file_path, 'a', newline='') as csv_outfile:
-                        row_writer = csv.writer(csv_outfile)
-                        row_writer.writerow(value for value in json_packet.values())
-                if self.data_format == "ASL":
-                    time_stamp= str(time.time_ns())
-                    # image
-                    image.save(f'{self.img_dir}/{time_stamp}.png')
-                    with open(self.cam_ts_file, 'a') as stampfile:
-                        stampfile.write(time_stamp+'\n')
-                    with open(self.cam_csv, 'a', newline='') as csvfile:
-                        row_writer = csv.writer(csvfile)
-                        row_writer.writerow([time_stamp, time_stamp+'.png'])
-                    # imu
-                    imu_stamp = (
-                        f"{time_stamp},"
-                        f"{json_packet['gyro_x']},"
-                        f"{json_packet['gyro_y']},"
-                        f"{json_packet['gyro_z']},"
-                        f"{json_packet['accel_x']},"
-                        f"{json_packet['accel_y']},"
-                        f"{json_packet['accel_z']}\n"
-                    )
-                    with open(self.imu_ts_file, 'a') as stampfile:
-                        stampfile.write(imu_stamp)
-                    imu_data = [
-                        time_stamp,
-                        float(json_packet['gyro_x']),
-                        float(json_packet['gyro_y']),
-                        float(json_packet['gyro_z']),
-                        float(json_packet['accel_x']),
-                        float(json_packet['accel_y']),
-                        float(json_packet['accel_z'])
-                    ]
-                    with open(self.imu_csv, 'a', newline='') as csvfile:
-                        row_writer = csv.writer(csvfile)
-                        row_writer.writerow(imu_data)
-
+                json_packet['lap'] = self.current_lap
+                self.recorder.record(json_packet)
             if self.drive_mode == 'telem_test':
                 ## report a bunch of stuff I'm curious about
                 json_keys = ['speed',' vel_x', 'vel_y', 'vel_z', 
@@ -280,11 +145,6 @@ def run_client(conf):
 
     time.sleep(1)
 
-    # # Uncomment to get track names
-    # get_tracks = '{"msg_type" : "get_scene_names"}'
-    # client.send(get_tracks)
-    # time.sleep(1)
-
     # Load Track
     msg = f'{{"msg_type" : "load_scene", "scene_name" : "{conf["track"]}"}}'
     client.send(msg)
@@ -312,43 +172,36 @@ def run_client(conf):
                 do_drive = False
         except KeyboardInterrupt:
             do_drive = False
-
     time.sleep(1.0)
-
     # Exit Scene
     msg = '{ "msg_type" : "exit_scene" }'
     client.send(msg)
-
     time.sleep(1.0)
-
-    # Close down clients
+    # Close down client
     print("waiting for msg loop to stop")
     client.stop()
     print("client stopped")
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="garnt_client")
-    parser.add_argument(
-        "--sim",
-        type=str,
-        default="sim_path",
-        help="path to unity simulator",
-    )
+    parser.add_argument("--sim",
+                        type=str,
+                        default="sim_path",
+                        help="path to unity simulator",)
     parser.add_argument("--host", 
                         type=str, 
                         default="127.0.0.1", 
-                        help="host to use for tcp")
+                        help="host to use for tcp",)
     parser.add_argument("--port", 
                         type=int, 
                         default=9091, 
-                        help="port to use for tcp")
+                        help="port to use for tcp",)
     parser.add_argument("--track", 
                         type=str, 
                         default=config.tracks[0],
                         help="name of donkey sim environment", 
-                        choices=config.tracks)
+                        choices=config.tracks,)
     parser.add_argument("--data_format", 
                         type=str, 
                         default=config.data_formats[0],
@@ -363,18 +216,16 @@ if __name__ == "__main__":
                         type=int, 
                         default=config.image_depths[0], 
                         help="1 for greyscale, 3 for RGB", 
-                        choices=config.image_depths) 
+                        choices=config.image_depths,) 
     parser.add_argument("--drive_mode", 
                         type=str, 
                         default=config.drive_modes[0], 
                         help="manual control or autopilot", 
-                        choices=config.drive_modes) 
+                        choices=config.drive_modes,) 
     parser.add_argument("--model_path", 
                         type=str, 
                         help="path to model for inferencing",) 
-
     args = parser.parse_args()
-
     conf = {
         "exe_path": args.sim,
         "host": args.host,
@@ -397,6 +248,4 @@ if __name__ == "__main__":
         "controller_type": config.ctr_type,
         "controller_path": config.ctr_path,
     }
-
-
     run_client(conf)
