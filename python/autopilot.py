@@ -21,6 +21,5 @@ class Autopilot:
     def infer(self, img):
         arr = self.convert_image(img)
         outputs = self.model.predict(arr.reshape((1,)+arr.shape), 
-                                    batch_size=1)
-        # _ = gc.collect()
+                                   batch_size=1)
         return outputs[0][0], outputs[0][1]

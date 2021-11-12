@@ -14,7 +14,6 @@ from PIL import Image
 from gym_donkeycar.core.sim_client import SDClient
 from controller import Controller
 from autopilot import Autopilot
-# from replay import Replay
 import csv
 import shutil
 
@@ -24,6 +23,7 @@ class SimpleClient(SDClient):
 
     def __init__(self, address, conf=None, poll_socket_sleep_time=0.01):
         super().__init__(*address, poll_socket_sleep_time=poll_socket_sleep_time)
+        self.current_lap = 0
         self.data_format = conf['data_type']
         self.car_loaded = False
         self.start_recording = False
@@ -33,13 +33,11 @@ class SimpleClient(SDClient):
         if self.drive_mode == 'auto':
             self.current_image = None
             self.ctr = Autopilot(conf['model_path'])
-        elif self.drive_mode == 'manual':
+        elif self.drive_mode in ('manual', 'telem_test'):
             self.ctr = Controller()
-        # elif self.drive_mode == 'replay':
-        #     # self.ctr = Controller() 
-        #     self.ctr = Replay(conf['replay_path'])
-        #     # self.update_ready = False
-        #     self.current_time = 0
+            if self.drive_mode == 'telem_test':
+                self.update_delay = 1.0
+                self.last_update = time.time()
         if self.data_format in ('csv', 'raw'):
             time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
             self.dir = f'{os.getcwd()}/../data/{time_str}'
@@ -65,7 +63,7 @@ class SimpleClient(SDClient):
             with open(self.csv_file_path, 'w', newline='') as csv_outfile:
                 row_writer = csv.writer(csv_outfile)
                 row_writer.writerow(self.csv_cols)
-            self.current_lap = 0
+            # self.current_lap = 0
         if self.data_format == 'ASL':
             asl_dir = f'{os.getcwd()}/../data/asl'
             dir_num = 1
@@ -150,7 +148,7 @@ class SimpleClient(SDClient):
                 if not self.current_image:
                     print('got first image')
                 self.current_image = image.copy()
-                return # skip the recording
+                # return # skip the recording
 
             if json_packet['throttle'] > 0.0:
                 self.start_recording = True
@@ -203,13 +201,26 @@ class SimpleClient(SDClient):
                         row_writer = csv.writer(csvfile)
                         row_writer.writerow(imu_data)
 
-            # if self.drive_mode == 'replay':
-            #     self.current_time = json_packet['time']
-
+            if self.drive_mode == 'telem_test':
+                ## report a bunch of stuff I'm curious about
+                current_time = time.time()
+                if current_time - self.last_update >= self.update_delay:
+                    j = json_packet
+                    os.system('clear')
+                    print('===========================')
+                    print(f"time: {j['time']}")
+                    print('===========================')
+                    print(f"pso: x:{j['pos_x']} y:{j['pos_y']}")
+                    print(f"node: {j['activeNode']}/{j['totalNodes']}")
+                    print(f"on_road: {j['on_road']}  hit: {j['hit']}")
+                    print(f"progress(?): {j['progress_on_shortest_path']}")
+                    print(f"cte: {j['cte']}")
+                    print('===========================')
+                    self.last_update = current_time
 
 
     def send_controls(self, steering, throttle):
-        print(f'{steering}, {throttle}')
+        # print(f'{steering}, {throttle}')
         p = { "msg_type" : "control",
                 "steering" : steering.__str__(),
                 "throttle" : throttle.__str__(),
@@ -223,8 +234,8 @@ class SimpleClient(SDClient):
     def auto_update(self):
         # get inferences from autopilot
         steering, throttle = self.ctr.infer(self.current_image)
-        # if throttle > 0.8:
-        #     throttle = 0.8
+        # if throttle > 0.5:
+            # throttle = 0.5
         return steering, throttle
 
     def manual_update(self, st_scale=1.0, th_scale=1.0):
@@ -247,7 +258,7 @@ class SimpleClient(SDClient):
                 print("Waiting for first image")
                 return 
             steering, throttle = self.auto_update()
-        elif self.drive_mode == 'manual':
+        elif self.drive_mode in ('manual', 'telem_test'):
             steering, throttle = self.manual_update()
         # elif self.drive_mode == 'replay':
             # steering, throttle = self.replay_update()
@@ -363,6 +374,7 @@ if __name__ == "__main__":
         ]
 
     data_format_list = [
+        "None",
         "csv",
         "raw",
         "ASL"
@@ -382,6 +394,7 @@ if __name__ == "__main__":
     drive_mode_list = [
         "manual",
         "auto",
+        "telem_test"
         # "replay"
     ]
 
@@ -407,7 +420,7 @@ if __name__ == "__main__":
                         choices=env_list)
     parser.add_argument("--data_type", 
                         type=str, 
-                        default="csv", 
+                        default="None", 
                         help="recording format", 
                         choices=data_format_list) 
     parser.add_argument("--image_format", 
