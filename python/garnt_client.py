@@ -16,34 +16,34 @@ from controller import Controller
 from autopilot import Autopilot
 import csv
 import shutil
-
+import config
 
 class SimpleClient(SDClient):
 
-
     def __init__(self, address, conf=None, poll_socket_sleep_time=0.01):
         super().__init__(*address, poll_socket_sleep_time=poll_socket_sleep_time)
-        self.current_lap = 0
-        self.data_format = conf['data_type']
+        self.data_format = conf['data_format']
         self.car_loaded = False
         self.start_recording = False
         self.image_depth = conf['image_depth']
         self.image_format = conf['image_format']
         self.drive_mode = conf['drive_mode']
+        self.current_lap = 0
         if self.drive_mode == 'auto':
             self.current_image = None
             self.ctr = Autopilot(conf['model_path'])
         elif self.drive_mode in ('manual', 'telem_test'):
-            self.ctr = Controller()
+            self.ctr = Controller(ctr_type=conf['controller_type'], 
+                                  path=conf['controller_path'])
             if self.drive_mode == 'telem_test':
                 self.update_delay = 1.0
                 self.prev_node = None
                 self.last_update = time.time()
-        if self.data_format in ('csv', 'raw'):
+        if self.data_format in ('csv', 'tub'):
             time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
             self.dir = f'{os.getcwd()}/../data/{time_str}'
             os.makedirs(self.dir, exist_ok=True)
-        if self.data_format == 'raw':
+        if self.data_format == 'tub':
             self.data_dir = f'{self.dir}/{self.data_format}_data'
             os.makedirs(self.data_dir, exist_ok=True)
             self.img_dir = f'{self.dir}/images'
@@ -131,8 +131,6 @@ class SimpleClient(SDClient):
 
 
     def on_msg_recv(self, json_packet):
-        
-
         if json_packet['msg_type'] != "telemetry":     
             print("got:", json_packet)
 
@@ -154,7 +152,7 @@ class SimpleClient(SDClient):
             if json_packet['throttle'] > 0.0:
                 self.start_recording = True
             if self.start_recording:
-                if self.data_format == "raw":
+                if self.data_format == "tub":
                     image.save(f'{self.img_dir}/frame_{self.record_count:04d}.png')
                     del json_packet['image']
                     with open(f'{self.data_dir}/data_{self.record_count:04d}', 'w') as outfile:
@@ -202,39 +200,31 @@ class SimpleClient(SDClient):
                         row_writer = csv.writer(csvfile)
                         row_writer.writerow(imu_data)
 
-
-                # 'steering_angle', 'throttle', 'speed', 'image', 'hit', 
-                # 'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
-                # 'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll', 
-                # 'cte', 'activeNode', 'totalNodes', 'pos_x', 'pos_y', 
-                # 'pos_z', 'vel_x', 'vel_y', 'vel_z', 'on_road', 
-                # 'progress_on_shortest_path',
             if self.drive_mode == 'telem_test':
                 ## report a bunch of stuff I'm curious about
                 json_keys = ['speed',' vel_x', 'vel_y', 'vel_z', 
                     'accel_x', 'accel_y', 'accel_z', 'gyro_x', 'gyro_y',
                     'gyro_z','gyro_w', 'pitch', 'yaw', 'roll',]
                 current_time = time.time()
-                if True:
-                # if current_time - self.last_update >= self.update_delay:
-                    # os.system('clear')
-                    # print('===========================')
+                if current_time - self.last_update >= self.update_delay:
+                    os.system('clear')
+                    print('===========================')
                     j = json_packet
                     del j['image']
-                    if self.current_lap > 0:
-                        if not self.prev_node:
-                            self.prev_node = j['activeNode']
-                        else:
-                            if j['activeNode'] - self.prev_node < 0:
-                                # if j['activeNode'] == 0:
-                                #     print('LAP')
-                                # else:
-                                print('NEGATIVE PROGRESS')
-                                print(f"{self.prev_node} --> {j['activeNode']}")
-                            self.prev_node = j['activeNode']
-                    # for key in json_keys:
-                    #     print(f'{key}: {j[key]}')
-                    # print('===========================')
+                    # if self.current_lap > 0:
+                    #     if not self.prev_node:
+                    #         self.prev_node = j['activeNode']
+                    #     else:
+                    #         if j['activeNode'] - self.prev_node < 0:
+                    #             # if j['activeNode'] == 0:
+                    #             #     print('LAP')
+                    #             # else:
+                    #             print('NEGATIVE PROGRESS')
+                    #             print(f"{self.prev_node} --> {j['activeNode']}")
+                    #         self.prev_node = j['activeNode']
+                    for key in json_keys:
+                        print(f'{key}: {j[key]}')
+                    print('===========================')
                     self.last_update = current_time
 
 
@@ -267,10 +257,6 @@ class SimpleClient(SDClient):
             st = 0.0
         return st*st_scale, (fw + rv)*th_scale
 
-    # def replay_update(self):
-    #     if self.update_ready: 
-    #         return self.ctr.next_record(self.current_time)
-
     def update(self):
         if self.drive_mode == 'auto':
             if not self.current_image:
@@ -279,77 +265,42 @@ class SimpleClient(SDClient):
             steering, throttle = self.auto_update()
         elif self.drive_mode in ('manual', 'telem_test'):
             steering, throttle = self.manual_update()
-        # elif self.drive_mode == 'replay':
-            # steering, throttle = self.replay_update()
         self.send_controls(steering, throttle)
 
     def stop(self):
         print(f'Client stopping after {self.current_lap-1} laps.')
         super().stop()
 
-    
-            
 
 # Create client and connect it with the simulator
-def run_client(env_name, conf):
+def run_client(conf):
     host = conf["host"] # "trainmydonkey.com" for virtual racing
     port = conf["port"]
     client = SimpleClient(address=(host, port), conf=conf,)
 
     time.sleep(1)
 
-
     # # Uncomment to get track names
     # get_tracks = '{"msg_type" : "get_scene_names"}'
     # client.send(get_tracks)
     # time.sleep(1)
-    
-    # env_list = [
-    # "generated_road", 
-    # "warehouse", 
-    # "sparkfun_avc", 
-    # "generated_track", 
-    # "roboracingleague_1", 
-    # "waveshare", 
-    # "mini_monaco", 
-    # "warren", 
-    # "circuit_launch"
-    # ]
 
-    msg = f'{{"msg_type" : "load_scene", "scene_name" : "{env_name}"}}'
+    # Load Track
+    msg = f'{{"msg_type" : "load_scene", "scene_name" : "{conf["track"]}"}}'
     client.send(msg)
     loaded = False
     while(not loaded):
         time.sleep(1.0)
         loaded = client.car_loaded           
-
-
-
-    # Car config
-    car_config = (f'{{ "msg_type" : "car_config", ' 
-        f'"body_style" : "{str(conf["body_style"])}", ' 
-        f'"body_r" : "{str(conf["body_rgb"][0])}", ' 
-        f'"body_g" : "{str(conf["body_rgb"][1])}", ' 
-        f'"body_b" : "{str(conf["body_rgb"][2])}", ' 
-        f'"car_name" : "{str(conf["car_name"])}", ' 
-        f'"font_size" : "{str(conf["font_size"])}"}}')
-    msg = car_config
-    client.send(car_config)
-    time.sleep(1)
-
-
-
-    # Camera config
-    # set any field to Zero to get the default camera setting.
-    # the offset_x moves camera left/right
-    # the offset_y moves camera up/down
-    # the offset_z moves camera forward/back
-    # with fish_eye_x/y == 0.0 then you get no distortion
-    # img_enc can be one of JPG|PNG|TGA
-    msg = '{ "msg_type" : "cam_config", "fov" : "0", "fish_eye_x" : "0.0", "fish_eye_y" : "0.0", "img_w" : "80", "img_h" : "60", "img_d" : "1", "img_enc" : "PNG", "offset_x" : "0.0", "offset_y" : "0.0", "offset_z" : "0.0", "rot_x" : "0.0" }'
+    
+    # Configure Car
+    msg = config.car_config()
     client.send(msg)
     time.sleep(1)
-
+    # Configure Camera
+    msg = config.cam_config()
+    client.send(msg)
+    time.sleep(1)
 
     # Drive car
     do_drive = True
@@ -378,45 +329,6 @@ def run_client(env_name, conf):
 
 if __name__ == "__main__":
 
-    # Initialize the donkey environment
-    # where env_name one of:
-    env_list = [
-        "generated_road", 
-        "warehouse", 
-        "sparkfun_avc", 
-        "generated_track", 
-        "roboracingleague_1", 
-        "waveshare", 
-        "mini_monaco", 
-        "warren", 
-        "circuit_launch"
-        ]
-
-    data_format_list = [
-        "None",
-        "csv",
-        "raw",
-        "ASL"
-    ]
-
-    image_format_list = [
-        'PNG',
-        'JPG',
-        'TGA'
-    ]
-
-    color_list = [
-        "1 (greyscale)",
-        "3 (RGB)"
-    ]
-
-    drive_mode_list = [
-        "manual",
-        "auto",
-        "telem_test"
-        # "replay"
-    ]
-
     parser = argparse.ArgumentParser(description="garnt_client")
     parser.add_argument(
         "--sim",
@@ -432,39 +344,34 @@ if __name__ == "__main__":
                         type=int, 
                         default=9091, 
                         help="port to use for tcp")
-    parser.add_argument("--env_name", 
+    parser.add_argument("--track", 
                         type=str, 
-                        default="mini_monaco", 
+                        default=config.tracks[0],
                         help="name of donkey sim environment", 
-                        choices=env_list)
-    parser.add_argument("--data_type", 
+                        choices=config.tracks)
+    parser.add_argument("--data_format", 
                         type=str, 
-                        default="None", 
+                        default=config.data_formats[0],
                         help="recording format", 
-                        choices=data_format_list) 
+                        choices=config.data_formats) 
     parser.add_argument("--image_format", 
                         type=str, 
-                        default="PNG", 
+                        default=config.image_formats[0], 
                         help="image format", 
-                        choices=image_format_list) 
+                        choices=config.image_formats[0]) 
     parser.add_argument("--image_channels", 
                         type=int, 
-                        default=1, 
-                        help="image channels", 
-                        choices=color_list) 
+                        default=config.image_depths[0], 
+                        help="1 for greyscale, 3 for RGB", 
+                        choices=config.image_depths) 
     parser.add_argument("--drive_mode", 
                         type=str, 
-                        default="manual", 
+                        default=config.drive_modes[0], 
                         help="manual control or autopilot", 
-                        choices=drive_mode_list) 
+                        choices=config.drive_modes) 
     parser.add_argument("--model_path", 
                         type=str, 
                         help="path to model for inferencing",) 
-    # parser.add_argument("--replay_path", 
-    #                     type=str, 
-    #                     help="path to csv file with recorded inputs",) 
-    
-
 
     args = parser.parse_args()
 
@@ -472,7 +379,7 @@ if __name__ == "__main__":
         "exe_path": args.sim,
         "host": args.host,
         "port": args.port,
-        "data_type": args.data_type,
+        "data_format": args.data_format,
         "body_style": "donkey", # donkey, bare, car01, cybertruck, f1
         "body_rgb": (255, 72, 0), # orange # pink: (234, 21, 144),
         "car_name": "",
@@ -486,7 +393,10 @@ if __name__ == "__main__":
         "image_depth": args.image_channels,
         "drive_mode": args.drive_mode,
         "model_path": args.model_path,
-        # "replay_path": args.replay_path
+        "track": args.track,
+        "controller_type": config.ctr_type,
+        "controller_path": config.ctr_path,
     }
 
-    run_client(args.env_name, conf)
+
+    run_client(conf)
