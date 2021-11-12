@@ -37,6 +37,7 @@ class SimpleClient(SDClient):
             self.ctr = Controller()
             if self.drive_mode == 'telem_test':
                 self.update_delay = 1.0
+                self.prev_node = None
                 self.last_update = time.time()
         if self.data_format in ('csv', 'raw'):
             time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
@@ -201,21 +202,39 @@ class SimpleClient(SDClient):
                         row_writer = csv.writer(csvfile)
                         row_writer.writerow(imu_data)
 
+
+                # 'steering_angle', 'throttle', 'speed', 'image', 'hit', 
+                # 'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
+                # 'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll', 
+                # 'cte', 'activeNode', 'totalNodes', 'pos_x', 'pos_y', 
+                # 'pos_z', 'vel_x', 'vel_y', 'vel_z', 'on_road', 
+                # 'progress_on_shortest_path',
             if self.drive_mode == 'telem_test':
                 ## report a bunch of stuff I'm curious about
+                json_keys = ['speed',' vel_x', 'vel_y', 'vel_z', 
+                    'accel_x', 'accel_y', 'accel_z', 'gyro_x', 'gyro_y',
+                    'gyro_z','gyro_w', 'pitch', 'yaw', 'roll',]
                 current_time = time.time()
-                if current_time - self.last_update >= self.update_delay:
+                if True:
+                # if current_time - self.last_update >= self.update_delay:
+                    # os.system('clear')
+                    # print('===========================')
                     j = json_packet
-                    os.system('clear')
-                    print('===========================')
-                    print(f"time: {j['time']}")
-                    print('===========================')
-                    print(f"pso: x:{j['pos_x']} y:{j['pos_y']}")
-                    print(f"node: {j['activeNode']}/{j['totalNodes']}")
-                    print(f"on_road: {j['on_road']}  hit: {j['hit']}")
-                    print(f"progress(?): {j['progress_on_shortest_path']}")
-                    print(f"cte: {j['cte']}")
-                    print('===========================')
+                    del j['image']
+                    if self.current_lap > 0:
+                        if not self.prev_node:
+                            self.prev_node = j['activeNode']
+                        else:
+                            if j['activeNode'] - self.prev_node < 0:
+                                # if j['activeNode'] == 0:
+                                #     print('LAP')
+                                # else:
+                                print('NEGATIVE PROGRESS')
+                                print(f"{self.prev_node} --> {j['activeNode']}")
+                            self.prev_node = j['activeNode']
+                    # for key in json_keys:
+                    #     print(f'{key}: {j[key]}')
+                    # print('===========================')
                     self.last_update = current_time
 
 
