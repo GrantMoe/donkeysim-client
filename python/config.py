@@ -25,8 +25,8 @@ cam_conf = {
     'fov' : 0, 
     'fish_eye_x' : 0.0, 
     'fish_eye_y' : 0.0, 
-    'img_w' : 80, 
-    'img_h' : 60, 
+    'img_w' : 64, 
+    'img_h' : 64, 
     'img_d' : 1, 
     'img_enc' : 'PNG', 
     'offset_x' : 0.0, 
@@ -36,7 +36,7 @@ cam_conf = {
 }
 
 def cam_config():
-    return msg_builder(cam_conf);
+    return msg_builder(cam_conf)
 
 def car_config():
     return msg_builder(car_conf)
@@ -48,6 +48,19 @@ def msg_builder(config_dict):
         msg_string += f'"{key}" : "{value}", '
     msg_string += "}"
     return msg_string
+
+IMU_SENSORS = [
+    'accel_x',
+    'accel_y',
+    'accel_z',
+    'gyro_x',
+    'gyro_y',
+    'gyro_z',
+    'gyro_w',
+    'vel_x',
+    'vel_y',
+    'vel_z',
+]
 
 
 # 0 is default

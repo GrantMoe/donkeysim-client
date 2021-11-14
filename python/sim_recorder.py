@@ -137,14 +137,13 @@ class CSVRecorder:
         self.image_format = image_format
         self.image_depth = image_depth
 
-    def record(self, json_packet, current_lap):
+    def record(self, json_packet):
         image = Image.open(
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
         image.save(f"{self.img_dir}/{json_packet['time']}.{self.image_format}")
         json_packet['image'] = f"{json_packet['time']}.{self.image_format}"
-        json_packet['lap'] = current_lap
-        del json_packet['msg_type']
+        # json_packet['lap'] = self.current_lap
         with open(self.csv_file_path, 'a', newline='') as csv_outfile:
             row_writer = csv.writer(csv_outfile)
             row_writer.writerow(value for value in json_packet.values())

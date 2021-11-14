@@ -1,10 +1,11 @@
 # Used as controller for donkey client. Takes image and makes predictions
 # of steering and throttle with its model.
-# import numpy as np
+import numpy as np
 # import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 from tensorflow.python.keras.backend import batch_dot
+import time
 # import gc
 
 class Autopilot:
@@ -18,35 +19,53 @@ class Autopilot:
         img_array = img_to_array(img)
         return img_array / 255
 
-    def infer(self, img):
-        arr = self.convert_image(img)
-        outputs = self.model.predict(arr.reshape((1,)+arr.shape), 
-                                   batch_size=1)
-        return outputs[0][0], outputs[0][1]
+    def infer(self, inputs):
+        img = self.convert_image(inputs[0])
+        if img.max() > 1:
+            print("invalid image")
+        imu = np.array(inputs[1])
+        img_in = img.reshape((1,)+img.shape)
+        imu_in = imu.reshape((1,)+imu.shape)
+        pred = self.model([img_in, imu_in])
+        st_pred = pred[0].numpy()[0][0]
+        th_pred = pred[1].numpy()[0][0]
+
+        # Throttle inputs are starting to come back more than 1?
+
+        return st_pred, th_pred
 
 class LineFollower:
 
     def __init__(self):
         # put PID stuff here.
         # self.steering_modifier = 1
+        self.steering_P = 0.75
+        self.steering_D = 0.5
+        self.throttle_P = 2
+        # self.throttle_D = 2
+        self.steering_max = 0.64
         self.steering = 0
         self.throttle = 0
-        self.previous_cte = 0
+        self.previous_e = 0
+        # self.current_time = time.time()
+        self.previous_time = time.time()
 
     def update(self, cte):
-        # steering
-        if cte < 0:
-            self.steering = 1.0
-        elif cte > 0:
-            self.steering = -1.0
-        else:
-            self.steering = 0.0
-        # throttle
-        if abs(cte) > abs(self.previous_cte):
-            self.throttle -= 0.01
-        elif abs(cte) < abs(self.previous_cte):
-            self.throttle += 0.01
-        self.previous_cte = cte
-        return self.steering, self.throttle
+        self.current_time = time.time()
+        e = self.norm(cte, -4, 4)
+        d = e - self.previous_e
+        steering = ((e * self.steering_P) + (d * self.steering_D)) * -1
+        throttle = 0.5 - (e * self.throttle_P)
+        max_steer = self.steering_P + self.steering_D
+        min_steer = max_steer * -1
+        steering = self.norm(steering, min_steer, max_steer)
+        throttle = self.norm(throttle, -4, 4)
+        self.previous_cte = e 
+        return steering, throttle
         
 
+    def norm(self, x, minimum, maximum, low=-1.0, high=1.0):
+        v_val = x
+        v_min = minimum
+        v_max = maximum
+        return (high - low) * (v_val - v_min) / (v_max - v_min) + low

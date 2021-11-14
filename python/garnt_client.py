@@ -28,6 +28,18 @@ class SimpleClient(SDClient):
         self.image_format = conf['image_format']
         self.drive_mode = conf['drive_mode']
         self.current_lap = 0
+
+        self.update_delay = 1.0
+        self.last_update = time.time()
+        self.cte = 0 
+        self.max_cte = 0
+        self.min_cte = 0
+        self.st_ctl = 0
+        self.th_ctl = 0
+        # self.st_angle = 0
+        # self.th_data = 0
+        self.recorder = None
+
         if self.drive_mode == 'auto':
             self.current_image = None
             self.ctr = Autopilot(conf['model_path'])
@@ -59,12 +71,18 @@ class SimpleClient(SDClient):
         if json_packet['msg_type'] == "collision_with_starting_line":
             self.current_lap += 1
         if json_packet['msg_type'] == "telemetry":
+            del json_packet['msg_type']
+            # if json_packet['cte'] > self.max_cte:
+            #     self.max_cte = json_packet['cte']
+            # if json_packet['cte'] < self.min_cte:
+            #     self.min_cte = json_packet['cte']
             if self.drive_mode == "auto":
                 if not self.current_image:
                     print('got first image')
                 self.current_image = Image.open(
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
+                self.current_imu = [json_packet[sensor] for sensor in config.IMU_SENSORS]
             if self.drive_mode == 'linefollow':
                 self.cte = json_packet['cte']
             if self.recorder and json_packet['throttle'] > 0.0:
@@ -77,26 +95,20 @@ class SimpleClient(SDClient):
                 # json_keys = ['speed',' vel_x', 'vel_y', 'vel_z', 
                 #     'accel_x', 'accel_y', 'accel_z', 'gyro_x', 'gyro_y',
                 #     'gyro_z','gyro_w', 'pitch', 'yaw', 'roll',]
-                json_keys = ['steering_angle', 'cte']
+                # json_keys = ['steering_angle', 'cte']
                 current_time = time.time()
+                json_keys = ['steering_angle', 'throttle']
                 if current_time - self.last_update >= self.update_delay:
                     os.system('clear')
                     print('===========================')
                     j = json_packet
                     del j['image']
-                    # if self.current_lap > 0:
-                    #     if not self.prev_node:
-                    #         self.prev_node = j['activeNode']
-                    #     else:
-                    #         if j['activeNode'] - self.prev_node < 0:
-                    #             # if j['activeNode'] == 0:
-                    #             #     print('LAP')
-                    #             # else:
-                    #             print('NEGATIVE PROGRESS')
-                    #             print(f"{self.prev_node} --> {j['activeNode']}")
-                    #         self.prev_node = j['activeNode']
-                    for key in json_keys:
-                        print(f'{key}: {j[key]}')
+                    print(f'st_ctl: {self.st_ctl}')
+                    print(f'st_ang: {j["steering_angle"]}')
+                    ratio = 0
+                    if self.st_ctl != 0:
+                        ratio = self.st_angle / self.st_ctl
+                    print(f'ratio: {ratio}')
                     print('===========================')
                     self.last_update = current_time
 
@@ -115,7 +127,8 @@ class SimpleClient(SDClient):
 
     def auto_update(self):
         # get inferences from autopilot
-        steering, throttle = self.ctr.infer(self.current_image)
+        inputs = self.current_image, self.current_imu
+        steering, throttle = self.ctr.infer(inputs)
         # if throttle > 0.5:
             # throttle = 0.5
         return steering, throttle
@@ -126,12 +139,24 @@ class SimpleClient(SDClient):
             throttle = 0.1
         if throttle > 1.0:
             throttle = 1.0
+        current_time = time.time()
+        if current_time - self.last_update >= self.update_delay:
+            os.system('clear')
+            print('===========================')
+            print(f'steering: {steering}')
+            print(f'throttle: {throttle}')
+            print(f'cte: {self.cte}')
+            print(f'rat: {self.cte/4.0}')
+            print('===========================')
+            self.last_update = current_time
         return steering, throttle
 
     def manual_update(self, st_scale=1.0, th_scale=1.0):
         # get normed inputs from controller
         self.ctr.update()
-        st = self.ctr.norm('left_stick_horz', -1.0, 1.0)
+        # st = self.ctr.norm('left_stick_horz', -1.0, 1.0)
+        # anything lower and higher than +-0.64 are treated as +-0.64
+        st = self.ctr.norm('left_stick_horz', -0.64, 0.64) 
         fw = self.ctr.norm('right_trigger', 0.0, 1.0)
         rv = self.ctr.norm('left_trigger', 0.0, -1.0)
         if abs(st) < 0.07:
@@ -148,6 +173,20 @@ class SimpleClient(SDClient):
             steering, throttle = self.linefollow_update()
         elif self.drive_mode in ('manual', 'telem_test'):
             steering, throttle = self.manual_update()
+        self.st_ctl = steering
+        self.th_ctl = throttle
+        current_time = time.time()
+        if current_time - self.last_update >= self.update_delay:
+            os.system('clear')
+            print('===========================')
+            print(f'str: {steering}')
+            print(f'thr: {throttle}')
+            print(f'lap: {self.current_lap}')
+            print(f'cte: {self.cte}')
+            print(f'min: {self.min_cte}')
+            print(f'max: {self.max_cte}')
+            print('===========================')
+            self.last_update = current_time
         self.send_controls(steering, throttle)
 
     def stop(self):
@@ -190,6 +229,7 @@ def run_client(conf):
                 do_drive = False
         except KeyboardInterrupt:
             do_drive = False
+        # time.sleep(0.05)
     time.sleep(1.0)
     # Exit Scene
     msg = '{ "msg_type" : "exit_scene" }'
