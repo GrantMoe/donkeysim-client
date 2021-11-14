@@ -21,17 +21,14 @@ class Autopilot:
 
     def infer(self, inputs):
         img = self.convert_image(inputs[0])
-        if img.max() > 1:
-            print("invalid image")
         imu = np.array(inputs[1])
         img_in = img.reshape((1,)+img.shape)
         imu_in = imu.reshape((1,)+imu.shape)
         pred = self.model([img_in, imu_in])
-        st_pred = pred[0].numpy()[0][0]
-        th_pred = pred[1].numpy()[0][0]
-
-        # Throttle inputs are starting to come back more than 1?
-
+        # st_pred = pred[0].numpy()[0][0]
+        # th_pred = pred[1].numpy()[0][0]
+        st_pred = pred.numpy()[0][0]
+        th_pred = pred.numpy()[0][1]
         return st_pred, th_pred
 
 class LineFollower:

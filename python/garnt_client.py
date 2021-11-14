@@ -91,11 +91,6 @@ class SimpleClient(SDClient):
                 json_packet['lap'] = self.current_lap
                 self.recorder.record(json_packet)
             if self.drive_mode == 'telem_test':
-                ## report a bunch of stuff I'm curious about
-                # json_keys = ['speed',' vel_x', 'vel_y', 'vel_z', 
-                #     'accel_x', 'accel_y', 'accel_z', 'gyro_x', 'gyro_y',
-                #     'gyro_z','gyro_w', 'pitch', 'yaw', 'roll',]
-                # json_keys = ['steering_angle', 'cte']
                 current_time = time.time()
                 json_keys = ['steering_angle', 'throttle']
                 if current_time - self.last_update >= self.update_delay:
@@ -129,12 +124,12 @@ class SimpleClient(SDClient):
         # get inferences from autopilot
         inputs = self.current_image, self.current_imu
         steering, throttle = self.ctr.infer(inputs)
-        # if throttle > 0.5:
-            # throttle = 0.5
         return steering, throttle
 
     def linefollow_update(self):
         steering, throttle = self.ctr.update(self.cte)
+        # if throttle < -1.0 or throttle > 1.0:
+        #     print(f'invalid throttle: {throttle}')
         if throttle < 0.1:
             throttle = 0.1
         if throttle > 1.0:
@@ -175,6 +170,11 @@ class SimpleClient(SDClient):
             steering, throttle = self.manual_update()
         self.st_ctl = steering
         self.th_ctl = throttle
+        # if throttle < -1.0 or throttle > 1.0:
+            # print(f'invalid throttle: {throttle}')
+        # if steering < -1.0 or steering > 1.0:
+            # print(f'invalid steering: {steering}')
+
         current_time = time.time()
         if current_time - self.last_update >= self.update_delay:
             os.system('clear')
@@ -182,9 +182,9 @@ class SimpleClient(SDClient):
             print(f'str: {steering}')
             print(f'thr: {throttle}')
             print(f'lap: {self.current_lap}')
-            print(f'cte: {self.cte}')
-            print(f'min: {self.min_cte}')
-            print(f'max: {self.max_cte}')
+            # print(f'cte: {self.cte}')
+            # print(f'min: {self.min_cte}')
+            # print(f'max: {self.max_cte}')
             print('===========================')
             self.last_update = current_time
         self.send_controls(steering, throttle)
