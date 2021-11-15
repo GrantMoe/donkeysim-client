@@ -42,7 +42,7 @@ class SimpleClient(SDClient):
 
         if self.drive_mode == 'auto':
             self.current_image = None
-            self.ctr = Autopilot(conf['model_path'])
+            self.ctr = Autopilot(conf)
         if self.drive_mode == 'linefollow':
             self.ctr = LineFollower()
             self.cte = 0
@@ -71,6 +71,25 @@ class SimpleClient(SDClient):
         if json_packet['msg_type'] == "collision_with_starting_line":
             self.current_lap += 1
         if json_packet['msg_type'] == "telemetry":
+            current_time = time.time()
+            if current_time - self.last_update >= self.update_delay:
+                if self.drive_mode == 'telem_test':
+                    telem_keys = ['accel_x', 'accel_y', 'accel_z', 'gyro_x', 'gyro_y', 'gyro_z', 'gyro_w', 'vel_x', 'vel_y', 'vel_z']
+                    os.system('clear')
+                    print('===========================')
+                    for key in telem_keys:
+                        if 'gyro' in key:
+                            print(f'{key}: {json_packet[key]*1000:.3f}')
+                        else:    
+                            print(f'{key}: {json_packet[key]:.3f}')
+                    # print(f'str: {json_packet:.3f}')
+                    # print(f'thr: {json_packet:.3f}')
+                    # print(f'lap: {self.current_lap}')
+                    # print(f'cte: {self.cte}')
+                    # print(f'min: {self.min_cte}')
+                    # print(f'max: {self.max_cte}')
+                    print('===========================')
+                    self.last_update = current_time
             del json_packet['msg_type']
             # if json_packet['cte'] > self.max_cte:
             #     self.max_cte = json_packet['cte']
@@ -90,22 +109,17 @@ class SimpleClient(SDClient):
             if self.start_recording:
                 json_packet['lap'] = self.current_lap
                 self.recorder.record(json_packet)
-            if self.drive_mode == 'telem_test':
-                current_time = time.time()
-                json_keys = ['steering_angle', 'throttle']
-                if current_time - self.last_update >= self.update_delay:
-                    os.system('clear')
-                    print('===========================')
-                    j = json_packet
-                    del j['image']
-                    print(f'st_ctl: {self.st_ctl}')
-                    print(f'st_ang: {j["steering_angle"]}')
-                    ratio = 0
-                    if self.st_ctl != 0:
-                        ratio = self.st_angle / self.st_ctl
-                    print(f'ratio: {ratio}')
-                    print('===========================')
-                    self.last_update = current_time
+            # if self.drive_mode == 'telem_test':
+            #     current_time = time.time()
+            #     json_keys = ['speed', 'roll', 'yaw']
+            #     if current_time - self.last_update >= self.update_delay:
+            #         os.system('clear')
+            #         print('===========================')
+            #         del json_packet['image']
+            #         for key in json_keys:
+            #             print(f'{key}: {json_packet[key]}')
+            #         print('===========================')
+            #         self.last_update = current_time
 
 
     def send_controls(self, steering, throttle):
@@ -179,8 +193,8 @@ class SimpleClient(SDClient):
         if current_time - self.last_update >= self.update_delay:
             os.system('clear')
             print('===========================')
-            print(f'str: {steering}')
-            print(f'thr: {throttle}')
+            print(f'str: {steering:.3f}')
+            print(f'thr: {throttle:.3f}')
             print(f'lap: {self.current_lap}')
             # print(f'cte: {self.cte}')
             # print(f'min: {self.min_cte}')
@@ -282,6 +296,7 @@ if __name__ == "__main__":
                         choices=config.drive_modes,) 
     parser.add_argument("--model_path", 
                         type=str, 
+                        default=config.model_path,
                         help="path to model for inferencing",) 
     args = parser.parse_args()
     conf = {
@@ -305,5 +320,6 @@ if __name__ == "__main__":
         "track": args.track,
         "controller_type": config.ctr_type,
         "controller_path": config.ctr_path,
+        "scaler_path": config.imu_ss_path
     }
     run_client(conf)

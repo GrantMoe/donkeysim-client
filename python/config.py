@@ -1,7 +1,9 @@
 ## File for holding configuration for donkey sim client
 
-ctr_type='xbox' 
-ctr_path='/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
+ctr_type = 'xbox' 
+ctr_path = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
+imu_ss_path = '/home/grant/projects/capstone/data/11_12_2021/19_28_18/imu_ss.pkl'
+model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_38.h5'
 
 car_conf = {
     'msg_type': 'car_config',
