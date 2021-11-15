@@ -6,7 +6,7 @@ import pickle
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 # from tensorflow.python.keras.backend import batch_dot
-import time
+# import time
 # import gc
 
 class Autopilot:
@@ -30,39 +30,3 @@ class Autopilot:
         st_pred = pred.numpy()[0][0]
         th_pred = pred.numpy()[0][1]
         return st_pred, th_pred
-
-# class LineFollower:
-
-#     def __init__(self):
-#         # put PID stuff here.
-#         # self.steering_modifier = 1
-#         self.steering_P = 0.75
-#         self.steering_D = 0.5
-#         self.throttle_P = 2
-#         # self.throttle_D = 2
-#         self.steering_max = 0.64
-#         self.steering = 0
-#         self.throttle = 0
-#         self.previous_e = 0
-#         # self.current_time = time.time()
-#         self.previous_time = time.time()
-
-#     def update(self, cte):
-#         self.current_time = time.time()
-#         e = self.norm(cte, -4, 4)
-#         d = e - self.previous_e
-#         steering = ((e * self.steering_P) + (d * self.steering_D)) * -1
-#         throttle = 0.5 - (e * self.throttle_P)
-#         max_steer = self.steering_P + self.steering_D
-#         min_steer = max_steer * -1
-#         steering = self.norm(steering, min_steer, max_steer)
-#         throttle = self.norm(throttle, -4, 4)
-#         self.previous_cte = e 
-#         return steering, throttle
-        
-
-    def norm(self, x, minimum, maximum, low=-1.0, high=1.0):
-        v_val = x
-        v_min = minimum
-        v_max = maximum
-        return (high - low) * (v_val - v_min) / (v_max - v_min) + low

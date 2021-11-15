@@ -13,7 +13,7 @@ import base64
 from PIL import Image
 from gym_donkeycar.core.sim_client import SDClient
 from controller import Controller
-from autopilot import Autopilot, LineFollower
+from autopilot import Autopilot
 import config
 from sim_recorder import ASLRecorder, CSVRecorder, TubRecorder
 
@@ -43,9 +43,6 @@ class SimpleClient(SDClient):
         if self.drive_mode == 'auto':
             self.current_image = None
             self.ctr = Autopilot(conf)
-        if self.drive_mode == 'linefollow':
-            self.ctr = LineFollower()
-            self.cte = 0
         elif self.drive_mode in ('manual', 'telem_test'):
             self.ctr = Controller(ctr_type=conf['controller_type'], 
                                   path=conf['controller_path'])
@@ -102,8 +99,6 @@ class SimpleClient(SDClient):
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
                 self.current_imu = [json_packet[sensor] for sensor in config.IMU_SENSORS]
-            if self.drive_mode == 'linefollow':
-                self.cte = json_packet['cte']
             if self.recorder and json_packet['throttle'] > 0.0:
                 self.start_recording = True
             if self.start_recording:
@@ -140,25 +135,6 @@ class SimpleClient(SDClient):
         steering, throttle = self.ctr.infer(inputs)
         return steering, throttle
 
-    def linefollow_update(self):
-        steering, throttle = self.ctr.update(self.cte)
-        # if throttle < -1.0 or throttle > 1.0:
-        #     print(f'invalid throttle: {throttle}')
-        if throttle < 0.1:
-            throttle = 0.1
-        if throttle > 1.0:
-            throttle = 1.0
-        current_time = time.time()
-        if current_time - self.last_update >= self.update_delay:
-            os.system('clear')
-            print('===========================')
-            print(f'steering: {steering}')
-            print(f'throttle: {throttle}')
-            print(f'cte: {self.cte}')
-            print(f'rat: {self.cte/4.0}')
-            print('===========================')
-            self.last_update = current_time
-        return steering, throttle
 
     def manual_update(self, st_scale=1.0, th_scale=1.0):
         # get normed inputs from controller
@@ -178,8 +154,6 @@ class SimpleClient(SDClient):
                 print("Waiting for first image")
                 return 
             steering, throttle = self.auto_update()
-        elif self.drive_mode == 'linefollow':
-            steering, throttle = self.linefollow_update()
         elif self.drive_mode in ('manual', 'telem_test'):
             steering, throttle = self.manual_update()
         self.st_ctl = steering
