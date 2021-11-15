@@ -3,7 +3,9 @@
 ctr_type = 'xbox' 
 ctr_path = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
 imu_ss_path = '/home/grant/projects/capstone/data/11_12_2021/19_28_18/imu_ss.pkl'
-model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_38.h5'
+model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_44.h5'
+DUAL_OUTPUT = True
+
 
 car_conf = {
     'msg_type': 'car_config',
@@ -51,6 +53,8 @@ def msg_builder(config_dict):
     msg_string += "}"
     return msg_string
 
+
+HAS_IMU = True
 IMU_SENSORS = [
     'accel_x',
     'accel_y',
@@ -58,7 +62,7 @@ IMU_SENSORS = [
     'gyro_x',
     'gyro_y',
     'gyro_z',
-    'gyro_w',
+    # 'gyro_w',
     'vel_x',
     'vel_y',
     'vel_z',

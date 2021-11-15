@@ -71,7 +71,7 @@ class SimpleClient(SDClient):
             current_time = time.time()
             if current_time - self.last_update >= self.update_delay:
                 if self.drive_mode == 'telem_test':
-                    telem_keys = ['accel_x', 'accel_y', 'accel_z', 'gyro_x', 'gyro_y', 'gyro_z', 'gyro_w', 'vel_x', 'vel_y', 'vel_z']
+                    telem_keys = ['accel_x', 'accel_y', 'accel_z', 'gyro_x', 'gyro_y', 'gyro_z', 'vel_x', 'vel_y', 'vel_z']
                     os.system('clear')
                     print('===========================')
                     for key in telem_keys:
@@ -131,7 +131,10 @@ class SimpleClient(SDClient):
 
     def auto_update(self):
         # get inferences from autopilot
-        inputs = self.current_image, self.current_imu
+        if config.HAS_IMU:
+            inputs = self.current_image, self.current_imu
+        else:
+            inputs = [self.current_image]
         steering, throttle = self.ctr.infer(inputs)
         return steering, throttle
 
@@ -294,6 +297,7 @@ if __name__ == "__main__":
         "track": args.track,
         "controller_type": config.ctr_type,
         "controller_path": config.ctr_path,
-        "scaler_path": config.imu_ss_path
+        "scaler_path": config.imu_ss_path,
+        "dual_output": config.DUAL_OUTPUT,
     }
     run_client(conf)
