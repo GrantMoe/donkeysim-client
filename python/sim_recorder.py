@@ -111,7 +111,23 @@ class ASLRecorder:
             row_writer = csv.writer(csvfile)
             row_writer.writerow(imu_data)
 
+class LapRecorder:
 
+    def __init__(self, model_path):
+        model_str = model_path.split('/')[-1][:-3]
+        day_str = time.strftime("%m_%d_%Y")
+        time_str = time.strftime("%H_%M")
+        self.dir = f'{os.getcwd()}/../data/{model_str}/{day_str}'
+        os.makedirs(self.dir, exist_ok=True)
+        self.csv_file_path = f'{self.dir}/{time_str}.csv'
+        with open(self.csv_file_path, 'w', newline='') as csv_outfile:
+            row_writer = csv.writer(csv_outfile)
+            row_writer.writerow(('lap','time'))
+
+    def record(self, lap, time):
+        with open(self.csv_file_path, 'a', newline='') as csv_outfile:
+            row_writer = csv.writer(csv_outfile)
+            row_writer.writerow((lap, time))
 
 class CSVRecorder:
 

@@ -15,7 +15,7 @@ from gym_donkeycar.core.sim_client import SDClient
 from controller import Controller
 from autopilot import Autopilot
 import config
-from sim_recorder import ASLRecorder, CSVRecorder, TubRecorder
+from sim_recorder import ASLRecorder, CSVRecorder, LapRecorder, TubRecorder
 
 class SimpleClient(SDClient):
 
@@ -36,9 +36,11 @@ class SimpleClient(SDClient):
         self.min_cte = 0
         self.st_ctl = 0
         self.th_ctl = 0
-        # self.st_angle = 0
-        # self.th_data = 0
+        self.x = 0
+        self.y = 0
+        self.z = 0
         self.recorder = None
+        self.record_laps = conf['record_laps']
 
         if self.drive_mode == 'auto':
             self.current_image = None
@@ -58,7 +60,8 @@ class SimpleClient(SDClient):
             self.recorder = ASLRecorder(self.image_format, self.image_depth)
         else:
             self.recorder = None
-
+        if self.record_laps:
+            self.lap_recorder = LapRecorder(conf['model_path'])
 
     def on_msg_recv(self, json_packet):
         if json_packet['msg_type'] != "telemetry":     
@@ -67,7 +70,12 @@ class SimpleClient(SDClient):
             self.car_loaded = True
         if json_packet['msg_type'] == "collision_with_starting_line":
             self.current_lap += 1
+            if self.record_laps:
+                self.lap_recorder.record(self.current_lap, json_packet['timeStamp'])
         if json_packet['msg_type'] == "telemetry":
+            self.x = json_packet['pos_x']
+            self.y = json_packet['pos_y']
+            self.z = json_packet['pos_z']
             current_time = time.time()
             if current_time - self.last_update >= self.update_delay:
                 if self.drive_mode == 'telem_test':
@@ -88,17 +96,13 @@ class SimpleClient(SDClient):
                     print('===========================')
                     self.last_update = current_time
             del json_packet['msg_type']
-            # if json_packet['cte'] > self.max_cte:
-            #     self.max_cte = json_packet['cte']
-            # if json_packet['cte'] < self.min_cte:
-            #     self.min_cte = json_packet['cte']
             if self.drive_mode == "auto":
                 if not self.current_image:
                     print('got first image')
                 self.current_image = Image.open(
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
-                self.current_imu = [json_packet[sensor] for sensor in config.IMU_SENSORS]
+                self.current_telem = [json_packet[sensor] for sensor in config.telem_data]
             if self.recorder and json_packet['throttle'] > 0.0:
                 self.start_recording = True
             if self.start_recording:
@@ -131,8 +135,8 @@ class SimpleClient(SDClient):
 
     def auto_update(self):
         # get inferences from autopilot
-        if config.HAS_IMU:
-            inputs = self.current_image, self.current_imu
+        if config.HAS_TELEM:
+            inputs = self.current_image, self.current_telem
         else:
             inputs = [self.current_image]
         steering, throttle = self.ctr.infer(inputs)
@@ -172,6 +176,10 @@ class SimpleClient(SDClient):
             print('===========================')
             print(f'str: {steering:.3f}')
             print(f'thr: {throttle:.3f}')
+            print(f'x: {self.x}')
+            print(f'y: {self.y}')
+            print(f'z: {self.z}')
+
             print(f'lap: {self.current_lap}')
             # print(f'cte: {self.cte}')
             # print(f'min: {self.min_cte}')
@@ -299,5 +307,6 @@ if __name__ == "__main__":
         "controller_path": config.ctr_path,
         "scaler_path": config.imu_ss_path,
         "dual_output": config.DUAL_OUTPUT,
+        "record_laps": config.RECORD_LAPS,
     }
     run_client(conf)

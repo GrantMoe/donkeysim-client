@@ -48,3 +48,6 @@ class Autopilot:
     #     return st_pred, th_pred
 
 
+    # x'  = (b - a) * ( (x - x_min) / (x_max - x_min) ) + a
+    # def norm(self, x, x_min=-.0, x_max=1.0, low=-0.64, high=0.64):
+    #     return (high - low) * (x - x_min) / (x_max - x_min) + low

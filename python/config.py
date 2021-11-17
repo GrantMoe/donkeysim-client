@@ -2,9 +2,10 @@
 
 ctr_type = 'xbox' 
 ctr_path = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
-imu_ss_path = '/home/grant/projects/capstone/data/11_12_2021/19_28_18/imu_ss.pkl'
-model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_44.h5'
-DUAL_OUTPUT = True
+imu_ss_path = '/home/grant/projects/capstone/data/11_12_2021/19_28_18/sc.pkl'
+model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_103.h5'
+DUAL_OUTPUT = False
+RECORD_LAPS = True
 
 
 car_conf = {
@@ -54,8 +55,13 @@ def msg_builder(config_dict):
     return msg_string
 
 
-HAS_IMU = True
-IMU_SENSORS = [
+HAS_TELEM = True
+telem_data = [
+    # 'speed',
+    # 'pitch', 
+    # 'yaw',
+    # 'roll',
+    # 'activeNode'
     'accel_x',
     'accel_y',
     'accel_z',
@@ -71,14 +77,14 @@ IMU_SENSORS = [
 
 # 0 is default
 tracks = [
-    'mini_monaco', # default
+    'warehouse', #default
     'generated_road', 
-    'warehouse', 
+    # 'warehouse', 
     'sparkfun_avc', 
     'generated_track', 
     'roboracingleague_1', 
     'waveshare', 
-    # 'mini_monaco', 
+    'mini_monaco', 
     'warren', 
     'circuit_launch',
     ]
