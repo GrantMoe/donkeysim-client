@@ -28,6 +28,7 @@ class SimpleClient(SDClient):
         self.image_format = conf['image_format']
         self.drive_mode = conf['drive_mode']
         self.current_lap = 0
+        self.node = 0
 
         self.update_delay = 1.0
         self.last_update = time.time()
@@ -76,6 +77,7 @@ class SimpleClient(SDClient):
             self.x = json_packet['pos_x']
             self.y = json_packet['pos_y']
             self.z = json_packet['pos_z']
+            self.node = json_packet['activeNode']
             current_time = time.time()
             if current_time - self.last_update >= self.update_delay:
                 if self.drive_mode == 'telem_test':
@@ -176,9 +178,10 @@ class SimpleClient(SDClient):
             print('===========================')
             print(f'str: {steering:.3f}')
             print(f'thr: {throttle:.3f}')
-            print(f'x: {self.x}')
-            print(f'y: {self.y}')
-            print(f'z: {self.z}')
+            print(f'node: {self.node}')
+            # print(f'x: {self.x}')
+            # print(f'y: {self.y}')
+            # print(f'z: {self.z}')
 
             print(f'lap: {self.current_lap}')
             # print(f'cte: {self.cte}')
@@ -305,7 +308,7 @@ if __name__ == "__main__":
         "track": args.track,
         "controller_type": config.ctr_type,
         "controller_path": config.ctr_path,
-        "scaler_path": config.imu_ss_path,
+        "scaler_path": config.scaler_path,
         "dual_output": config.DUAL_OUTPUT,
         "record_laps": config.RECORD_LAPS,
     }

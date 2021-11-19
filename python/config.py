@@ -2,9 +2,9 @@
 
 ctr_type = 'xbox' 
 ctr_path = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
-imu_ss_path = '/home/grant/projects/capstone/data/11_12_2021/19_28_18/sc.pkl'
-model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_103.h5'
-DUAL_OUTPUT = False
+scaler_path = '/home/grant/projects/capstone/data/11_12_2021/19_28_18/mm_scaler_11_18_16_14.pkl'
+model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_152.h5'
+DUAL_OUTPUT = True
 RECORD_LAPS = True
 
 
@@ -57,29 +57,32 @@ def msg_builder(config_dict):
 
 HAS_TELEM = True
 telem_data = [
-    # 'speed',
-    # 'pitch', 
-    # 'yaw',
-    # 'roll',
-    # 'activeNode'
-    'accel_x',
-    'accel_y',
-    'accel_z',
-    'gyro_x',
-    'gyro_y',
-    'gyro_z',
+    'speed',
+    'pitch', 
+    'yaw',
+    'roll',
+    'activeNode',
+    'pos_x',
+    'pos_z',
+    # 'accel_x',
+    # 'accel_y',
+    # 'accel_z',
+    # 'gyro_x',
+    # 'gyro_y',
+    # 'gyro_z',
     # 'gyro_w',
-    'vel_x',
-    'vel_y',
-    'vel_z',
+    # 'vel_x',
+    # 'vel_y',
+    # 'vel_z',
 ]
 
 
 # 0 is default
 tracks = [
+    'mini_monaco', 
     'warehouse', #default
     'generated_road', 
-    # 'warehouse', 
+    'warehouse', 
     'sparkfun_avc', 
     'generated_track', 
     'roboracingleague_1', 
