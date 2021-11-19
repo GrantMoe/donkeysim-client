@@ -29,7 +29,7 @@ class Autopilot:
         img_in = img.reshape((1,)+img.shape)
         # imu_in = imu.reshape((1,)+imu.shape)
         pred = self.model([img_in, imu_in])
-        if self.dual_output:
+        if isinstance(pred, list):
             st_pred = pred[0].numpy()[0][0]
             th_pred = pred[1].numpy()[0][0]
         else:

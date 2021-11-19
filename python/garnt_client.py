@@ -309,7 +309,6 @@ if __name__ == "__main__":
         "controller_type": config.ctr_type,
         "controller_path": config.ctr_path,
         "scaler_path": config.scaler_path,
-        "dual_output": config.DUAL_OUTPUT,
         "record_laps": config.RECORD_LAPS,
     }
     run_client(conf)
