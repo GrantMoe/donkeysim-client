@@ -16,7 +16,6 @@ class Autopilot:
     def __init__(self, conf):
         self.model = load_model(conf['model_path'])
         self.scaler = pickle.load(open(conf['scaler_path'], 'rb'))
-        self.dual_output = conf['dual_output']
 
     def convert_image(self, img):
         img_array = img_to_array(img)
