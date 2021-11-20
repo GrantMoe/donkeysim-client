@@ -3,7 +3,7 @@
 ctr_type = 'xbox' 
 ctr_path = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
 scaler_path = '/home/grant/projects/capstone/data/11_12_2021/19_28_18/mm_scaler_11_19_02_56.pkl'
-model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_183.h5'
+model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_190.h5'
 RECORD_LAPS = True
 
 
