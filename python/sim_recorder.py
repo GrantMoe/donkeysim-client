@@ -152,6 +152,7 @@ class CSVRecorder:
             row_writer.writerow(self.csv_cols)
         self.image_format = image_format
         self.image_depth = image_depth
+        print(self.csv_file_path)
 
     def record(self, json_packet):
         image = Image.open(

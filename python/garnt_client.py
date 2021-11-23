@@ -176,18 +176,19 @@ class SimpleClient(SDClient):
         if current_time - self.last_update >= self.update_delay:
             os.system('clear')
             print('===========================')
+            
             print(f'str: {steering:.3f}')
             print(f'thr: {throttle:.3f}')
-            print(f'node: {self.node}')
+            # print(f'node: {self.node}')
             # print(f'x: {self.x}')
             # print(f'y: {self.y}')
             # print(f'z: {self.z}')
-
             print(f'lap: {self.current_lap}')
             # print(f'cte: {self.cte}')
             # print(f'min: {self.min_cte}')
             # print(f'max: {self.max_cte}')
             print('===========================')
+            print(f'{self.recorder.csv_file_path}')
             self.last_update = current_time
         self.send_controls(steering, throttle)
 

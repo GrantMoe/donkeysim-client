@@ -2,8 +2,8 @@
 
 ctr_type = 'xbox' 
 ctr_path = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
-scaler_path = '/home/grant/projects/capstone/data/11_12_2021/19_28_18/mm_scaler_11_19_02_56.pkl'
-model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_190.h5'
+scaler_path = '/home/grant/projects/capstone/data/11_12_2021/19_28_18/ss_scaler_11_19_01_16.pkl'
+model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_178.h5'
 RECORD_LAPS = True
 
 
@@ -55,6 +55,26 @@ def msg_builder(config_dict):
 
 
 HAS_TELEM = True
+# telem_data = [
+#     # 'speed',
+#     # 'pitch', 
+#     # 'yaw',
+#     # 'roll',
+#     # 'activeNode',
+#     # 'pos_x',
+#     # 'pos_z',
+#     # 'accel_x',
+#     # 'accel_y',
+#     # 'accel_z',
+#     # 'gyro_x',
+#     # 'gyro_y',
+#     # 'gyro_z',
+#     # 'gyro_w',
+#     # 'vel_x',
+#     # 'vel_y',
+#     # 'vel_z',
+# ]
+
 telem_data = [
     'speed',
     # 'pitch', 
@@ -62,24 +82,18 @@ telem_data = [
     # 'roll',
     # 'activeNode',
     'pos_x',
-    'pos_z',
-    # 'accel_x',
-    # 'accel_y',
-    # 'accel_z',
-    # 'gyro_x',
-    # 'gyro_y',
-    # 'gyro_z',
-    # 'gyro_w',
-    # 'vel_x',
-    # 'vel_y',
-    # 'vel_z',
+    'pos_z'
 ]
+
 
 
 # 0 is default
 tracks = [
-    'mini_monaco', 
-    'warehouse', #default
+    'circuit_launch',
+    # 'thunderhill',
+    # 'mountain_track',
+    'mini_monaco', #default
+    'warehouse', 
     'generated_road', 
     'warehouse', 
     'sparkfun_avc', 
@@ -92,8 +106,9 @@ tracks = [
     ]
 
 data_formats = [
-    'None', # default
+    # 'None', # default
     'CSV', # capstone
+    'None'
     'tub', # Donkey Car
     'ASL', # Slam
 ]
