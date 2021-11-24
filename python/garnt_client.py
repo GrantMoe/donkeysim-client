@@ -188,7 +188,7 @@ class SimpleClient(SDClient):
             # print(f'min: {self.min_cte}')
             # print(f'max: {self.max_cte}')
             print('===========================')
-            print(f'{self.recorder.csv_file_path}')
+            # print(f'{self.recorder.csv_file_path}')
             self.last_update = current_time
         self.send_controls(steering, throttle)
 
@@ -293,10 +293,6 @@ if __name__ == "__main__":
         "host": args.host,
         "port": args.port,
         "data_format": args.data_format,
-        "body_style": "donkey", # donkey, bare, car01, cybertruck, f1
-        "body_rgb": (255, 72, 0), # orange # pink: (234, 21, 144),
-        "car_name": "",
-        "font_size": 10,
         "racer_name": "Grant",
         "country": "California",
         "bio": "custom client",
