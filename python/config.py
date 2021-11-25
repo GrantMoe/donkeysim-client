@@ -7,6 +7,19 @@ model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_178
 RECORD_LAPS = False
 
 
+racer_conf = {
+    'msg_type' : 'racer_info',
+    'racer_name' : 'Grant',
+    'car_name' : 'Garnt',
+    'bio' : 'cargo cultist',
+    'country' : 'California',
+    'guid' : "GUID"
+}
+
+# Car config
+# body_style = "donkey" | "bare" | "car01" | "cybertruck" | "f1"  choice of string
+# body_rgb  = (128, 128, 128) tuple of ints
+# car_name = "string less than 64 char"
 car_conf = {
     'msg_type': 'car_config',
     'body_style': 'car01', # donkey, bare, car01, cybertruck, f1
@@ -19,11 +32,13 @@ car_conf = {
 
 # Camera config
 # set any field to Zero to get the default camera setting.
+# this will position the camera right above the car, with max fisheye and wide fov
+# this also changes the img output to 255x255x1 ( actually 255x255x3 just all three channels have same value)
 # the offset_x moves camera left/right
 # the offset_y moves camera up/down
 # the offset_z moves camera forward/back
 # with fish_eye_x/y == 0.0 then you get no distortion
-# img_enc can be one of JPG|PNG|TGA
+# img_enc can be one of JPG|PNG|TGA        
 cam_conf = {
     'msg_type' : 'cam_config', 
     'fov' : 0, 
@@ -44,6 +59,10 @@ def cam_config():
 
 def car_config():
     return msg_builder(car_conf)
+
+def racer_config():
+    return msg_builder(racer_conf)
+
 
 # This is silly
 def msg_builder(config_dict):

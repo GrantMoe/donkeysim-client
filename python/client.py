@@ -89,12 +89,6 @@ class SimpleClient(SDClient):
                             print(f'{key}: {json_packet[key]*1000:.3f}')
                         else:    
                             print(f'{key}: {json_packet[key]:.3f}')
-                    # print(f'str: {json_packet:.3f}')
-                    # print(f'thr: {json_packet:.3f}')
-                    # print(f'lap: {self.current_lap}')
-                    # print(f'cte: {self.cte}')
-                    # print(f'min: {self.min_cte}')
-                    # print(f'max: {self.max_cte}')
                     print('===========================')
                     self.last_update = current_time
             del json_packet['msg_type']
@@ -110,17 +104,23 @@ class SimpleClient(SDClient):
             if self.start_recording:
                 json_packet['lap'] = self.current_lap
                 self.recorder.record(json_packet)
-            # if self.drive_mode == 'telem_test':
-            #     current_time = time.time()
-            #     json_keys = ['speed', 'roll', 'yaw']
-            #     if current_time - self.last_update >= self.update_delay:
-            #         os.system('clear')
-            #         print('===========================')
-            #         del json_packet['image']
-            #         for key in json_keys:
-            #             print(f'{key}: {json_packet[key]}')
-            #         print('===========================')
-            #         self.last_update = current_time
+
+    def send_config(self):
+
+        # Racer
+        msg = config.racer_config()
+        self.send(msg)
+        time.sleep(0.2)
+        
+        # Car
+        msg = config.car_config()
+        self.send(msg)
+        time.sleep(0.2)
+        
+        # Camera
+        msg = config.cam_config()
+        self.send(msg)
+        time.sleep(0.2)
 
 
     def send_controls(self, steering, throttle):
@@ -203,8 +203,6 @@ def run_client(conf):
     port = conf["port"]
     client = SimpleClient(address=(host, port), conf=conf,)
 
-    time.sleep(1)
-
     # Load Track
     msg = f'{{"msg_type" : "load_scene", "scene_name" : "{conf["track"]}"}}'
     client.send(msg)
@@ -214,13 +212,7 @@ def run_client(conf):
         loaded = client.car_loaded           
     
     # Configure Car
-    msg = config.car_config()
-    client.send(msg)
-    time.sleep(1)
-    # Configure Camera
-    msg = config.cam_config()
-    client.send(msg)
-    time.sleep(1)
+    client.send_config()
 
     # Drive car
     do_drive = True
@@ -233,7 +225,9 @@ def run_client(conf):
         except KeyboardInterrupt:
             do_drive = False
         # time.sleep(0.05)
+    
     time.sleep(1.0)
+
     # Exit Scene
     msg = '{ "msg_type" : "exit_scene" }'
     client.send(msg)
@@ -293,10 +287,6 @@ if __name__ == "__main__":
         "host": args.host,
         "port": args.port,
         "data_format": args.data_format,
-        "racer_name": "Grant",
-        "country": "California",
-        "bio": "custom client",
-        "guid": str(uuid.uuid4()),
         "start_delay": 1,
         "image_format": args.image_format,
         "image_depth": args.image_channels,
