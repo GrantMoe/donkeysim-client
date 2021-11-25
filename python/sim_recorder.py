@@ -9,6 +9,25 @@ from io import BytesIO
 from PIL import Image
 
 
+class SimRecorder:
+
+    def __init__(self, conf):
+        data_format = conf.data_format 
+        image_format = conf.image_format
+        image_depth = conf.image_depth
+        if data_format == 'tub':
+            self.recorder = TubRecorder(image_format, image_depth)
+        elif data_format == 'CSV':
+            self.recorder = CSVRecorder(image_format, image_depth)
+        elif data_format == 'ASL':
+            self.recorder = ASLRecorder(image_format, image_depth)
+        else:
+            self.recorder = None
+
+    def record(self, json_packet):
+        self.recorder.record(json_packet)
+
+
 class ASLRecorder:
 
     def __init__(self):

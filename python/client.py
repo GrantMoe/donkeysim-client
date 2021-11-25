@@ -15,7 +15,7 @@ from gym_donkeycar.core.sim_client import SDClient
 from controller import Controller
 from autopilot import Autopilot
 import config
-from sim_recorder import ASLRecorder, CSVRecorder, LapRecorder, TubRecorder
+from sim_recorder import SimRecorder, ASLRecorder, CSVRecorder, LapRecorder, TubRecorder
 
 class SimpleClient(SDClient):
 
@@ -53,16 +53,12 @@ class SimpleClient(SDClient):
                 self.update_delay = 1.0
                 self.prev_node = None
                 self.last_update = time.time()
-        if self.data_format == 'tub':
-            self.recorder = TubRecorder(self.image_format, self.image_depth)
-        elif self.data_format == 'CSV':
-            self.recorder = CSVRecorder(self.image_format, self.image_depth)
-        elif self.data_format == 'ASL':
-            self.recorder = ASLRecorder(self.image_format, self.image_depth)
-        else:
-            self.recorder = None
+
+        if self.data_format:
+            self.recorder = SimRecorder(self)
         if self.record_laps:
-            self.lap_recorder = LapRecorder(conf['model_path'])
+            self.lap_recorder = LapRecorder(conf)
+
 
     def on_msg_recv(self, json_packet):
         if json_packet['msg_type'] != "telemetry":     
@@ -99,6 +95,7 @@ class SimpleClient(SDClient):
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
                 self.current_telem = [json_packet[sensor] for sensor in config.telem_data]
+            # Don't record if you haven't started yet.
             if self.recorder and json_packet['throttle'] > 0.0:
                 self.start_recording = True
             if self.start_recording:

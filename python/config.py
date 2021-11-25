@@ -111,6 +111,7 @@ tracks = [
     ]
 
 data_formats = [
+    None,
     'None', # default
     'CSV', # capstone
     'tub', # Donkey Car
