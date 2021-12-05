@@ -6,7 +6,6 @@ scaler_path = '/home/grant/projects/capstone/data/11_12_2021/19_28_18/ss_scaler_
 model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_178.h5'
 RECORD_LAPS = False
 
-
 racer_conf = {
     'msg_type' : 'racer_info',
     'racer_name' : 'Grant',
@@ -94,11 +93,8 @@ telem_data = [
     'vel_z',
 ]
 
-
 # 0 is default
 tracks = [
-    'warren' # default
-    'warehouse', 
     'generated_road', 
     'warehouse', 
     'sparkfun_avc', 

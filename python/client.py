@@ -3,19 +3,21 @@
 # by tawnkramer (https://github.com/tawnkramer)
 
 import argparse
-from re import T
-import uuid
-import os
-import json
-import time
-from io import BytesIO
 import base64
-from PIL import Image
-from gym_donkeycar.core.sim_client import SDClient
-from controller import Controller
-from autopilot import Autopilot
+import json
+import os
+import time
+
 import config
-from sim_recorder import SimRecorder, ASLRecorder, CSVRecorder, LapRecorder, TubRecorder
+
+from io import BytesIO
+from re import T
+from PIL import Image
+
+from gym_donkeycar.core.sim_client import SDClient
+from autopilot import Autopilot
+from controller import Controller
+from sim_recorder import SimRecorder, LapRecorder
 
 class SimpleClient(SDClient):
 
@@ -103,17 +105,14 @@ class SimpleClient(SDClient):
                 self.recorder.record(json_packet)
 
     def send_config(self):
-
         # Racer
         msg = config.racer_config()
         self.send(msg)
         time.sleep(0.2)
-        
         # Car
         msg = config.car_config()
         self.send(msg)
         time.sleep(0.2)
-        
         # Camera
         msg = config.cam_config()
         self.send(msg)
@@ -145,7 +144,6 @@ class SimpleClient(SDClient):
     def manual_update(self, st_scale=1.0, th_scale=1.0):
         # get normed inputs from controller
         self.ctr.update()
-        # st = self.ctr.norm('left_stick_horz', -1.0, 1.0)
         # anything lower and higher than +-0.64 are treated as +-0.64
         st = self.ctr.norm('left_stick_horz', -0.64, 0.64) 
         fw = self.ctr.norm('right_trigger', 0.0, 1.0)
@@ -164,28 +162,15 @@ class SimpleClient(SDClient):
             steering, throttle = self.manual_update()
         self.st_ctl = steering
         self.th_ctl = throttle
-        # if throttle < -1.0 or throttle > 1.0:
-            # print(f'invalid throttle: {throttle}')
-        # if steering < -1.0 or steering > 1.0:
-            # print(f'invalid steering: {steering}')
 
         current_time = time.time()
         if current_time - self.last_update >= self.update_delay:
             os.system('clear')
             print('===========================')
-            
             print(f'str: {steering:.3f}')
             print(f'thr: {throttle:.3f}')
-            # print(f'node: {self.node}')
-            # print(f'x: {self.x}')
-            # print(f'y: {self.y}')
-            # print(f'z: {self.z}')
             print(f'lap: {self.current_lap}')
-            # print(f'cte: {self.cte}')
-            # print(f'min: {self.min_cte}')
-            # print(f'max: {self.max_cte}')
             print('===========================')
-            # print(f'{self.recorder.csv_file_path}')
             self.last_update = current_time
         self.send_controls(steering, throttle)
 
