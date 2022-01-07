@@ -221,7 +221,7 @@ def run_client(conf):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="garnt_client")
+    parser = argparse.ArgumentParser(description="donkeysim_client")
     parser.add_argument("--sim",
                         type=str,
                         default="sim_path",
