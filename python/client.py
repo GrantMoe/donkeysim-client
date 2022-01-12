@@ -29,9 +29,10 @@ class SimpleClient(SDClient):
         self.image_depth = conf['image_depth']
         self.image_format = conf['image_format']
         self.drive_mode = conf['drive_mode']
+        self.extended_telem = conf['extended_telem']
         self.current_lap = 0
+        self.lap_start = None
         self.node = 0
-
         self.update_delay = 1.0
         self.last_update = time.time()
         self.cte = 0 
@@ -39,9 +40,10 @@ class SimpleClient(SDClient):
         self.min_cte = 0
         self.st_ctl = 0
         self.th_ctl = 0
-        self.x = 0
-        self.y = 0
-        self.z = 0
+        # self.x = 0
+        # self.y = 0
+        # self.z = 0
+        self.fresh_data = False
         self.recorder = None
         self.record_laps = conf['record_laps']
 
@@ -63,18 +65,26 @@ class SimpleClient(SDClient):
 
 
     def on_msg_recv(self, json_packet):
-        if json_packet['msg_type'] != "telemetry":     
-            print("got:", json_packet)
+
+        if json_packet['msg_type'] == "need_car_config":
+            self.send_config()
         if json_packet['msg_type'] == "car_loaded":
             self.car_loaded = True
+        if json_packet['msg_type'] not in ["telemetry", "collision_with_starting_line"]:     
+            print("got:", json_packet)
+        
         if json_packet['msg_type'] == "collision_with_starting_line":
+            if self.current_lap != 0:
+                lap_time = json_packet['timeStamp'] - self.lap_start
+                print(f"Lap: {self.current_lap}: {round(lap_time, 2)}")
+            self.lap_start = json_packet['timeStamp']
             self.current_lap += 1
             if self.record_laps:
                 self.lap_recorder.record(self.current_lap, json_packet['timeStamp'])
         if json_packet['msg_type'] == "telemetry":
-            self.x = json_packet['pos_x']
-            self.y = json_packet['pos_y']
-            self.z = json_packet['pos_z']
+            # self.x = json_packet['pos_x']
+            # self.y = json_packet['pos_y']
+            # self.z = json_packet['pos_z']
             self.node = json_packet['activeNode']
             current_time = time.time()
             if current_time - self.last_update >= self.update_delay:
@@ -103,6 +113,7 @@ class SimpleClient(SDClient):
             if self.start_recording:
                 json_packet['lap'] = self.current_lap
                 self.recorder.record(json_packet)
+            self.fresh_data = True    
 
     def send_config(self):
         # Racer
@@ -117,6 +128,7 @@ class SimpleClient(SDClient):
         msg = config.cam_config()
         self.send(msg)
         time.sleep(0.2)
+        print('config sent!')
 
 
     def send_controls(self, steering, throttle):
@@ -144,8 +156,7 @@ class SimpleClient(SDClient):
     def manual_update(self, st_scale=1.0, th_scale=1.0):
         # get normed inputs from controller
         self.ctr.update()
-        # anything lower and higher than +-0.64 are treated as +-0.64
-        st = self.ctr.norm('left_stick_horz', -0.64, 0.64) 
+        st = self.ctr.norm('left_stick_horz', -1.0, 1.0) 
         fw = self.ctr.norm('right_trigger', 0.0, 1.0)
         rv = self.ctr.norm('left_trigger', 0.0, -1.0)
         if abs(st) < 0.07:
@@ -162,17 +173,18 @@ class SimpleClient(SDClient):
             steering, throttle = self.manual_update()
         self.st_ctl = steering
         self.th_ctl = throttle
-
-        current_time = time.time()
-        if current_time - self.last_update >= self.update_delay:
-            os.system('clear')
-            print('===========================')
-            print(f'str: {steering:.3f}')
-            print(f'thr: {throttle:.3f}')
-            print(f'lap: {self.current_lap}')
-            print('===========================')
-            self.last_update = current_time
-        self.send_controls(steering, throttle)
+        # current_time = time.time()
+        # if current_time - self.last_update >= self.update_delay:
+        #     os.system('clear')
+        #     print('===========================')
+        #     print(f'str: {steering:.3f}')
+        #     print(f'thr: {throttle:.3f}')
+        #     print(f'lap: {self.current_lap}')
+        #     print('===========================')
+        #     self.last_update = current_time
+        if self.fresh_data:
+            self.send_controls(steering, throttle)
+            self.fresh_data = False
 
     def stop(self):
         print(f'Client stopping after {self.current_lap-1} laps.')
@@ -181,8 +193,8 @@ class SimpleClient(SDClient):
 
 # Create client and connect it with the simulator
 def run_client(conf):
-    host = conf["host"] # "trainmydonkey.com" for virtual racing
-    port = conf["port"]
+    host = "trainmydonkey.com" # conf["host"] # "trainmydonkey.com" for virtual racing
+    port = 9091 # conf["port"]
     client = SimpleClient(address=(host, port), conf=conf,)
 
     # Load Track
@@ -192,7 +204,9 @@ def run_client(conf):
     while(not loaded):
         time.sleep(1.0)
         loaded = client.car_loaded           
-    
+    # time.sleep(1)
+
+    # doesn't work when this isn't here
     # Configure Car
     client.send_config()
 
@@ -222,13 +236,9 @@ def run_client(conf):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="donkeysim_client")
-    parser.add_argument("--sim",
-                        type=str,
-                        default="sim_path",
-                        help="path to unity simulator",)
     parser.add_argument("--host", 
                         type=str, 
-                        default="127.0.0.1", 
+                        default="trainmydonkey.com", #"127.0.0.1", 
                         help="host to use for tcp",)
     parser.add_argument("--port", 
                         type=int, 
@@ -236,27 +246,27 @@ if __name__ == "__main__":
                         help="port to use for tcp",)
     parser.add_argument("--track", 
                         type=str, 
-                        default=config.tracks[0],
+                        default=config.DEFAULT_TRACK,
                         help="name of donkey sim environment", 
                         choices=config.tracks,)
     parser.add_argument("--data_format", 
                         type=str, 
-                        default=config.data_formats[0],
+                        default=config.DEFAULT_DATA_FORMAT,
                         help="recording format", 
                         choices=config.data_formats) 
     parser.add_argument("--image_format", 
                         type=str, 
-                        default=config.image_formats[0], 
+                        default=config.DEFAULT_IMAGE_FORMAT, 
                         help="image format", 
                         choices=config.image_formats[0]) 
     parser.add_argument("--image_channels", 
                         type=int, 
-                        default=config.image_depths[0], 
+                        default=config.DEFAULT_IMAGE_DEPTH,
                         help="1 for greyscale, 3 for RGB", 
                         choices=config.image_depths,) 
     parser.add_argument("--drive_mode", 
                         type=str, 
-                        default=config.drive_modes[0], 
+                        default=config.DEFAULT_DRIVE_MODE, 
                         help="manual control or autopilot", 
                         choices=config.drive_modes,) 
     parser.add_argument("--model_path", 
@@ -265,7 +275,6 @@ if __name__ == "__main__":
                         help="path to model for inferencing",) 
     args = parser.parse_args()
     conf = {
-        "exe_path": args.sim,
         "host": args.host,
         "port": args.port,
         "data_format": args.data_format,
@@ -279,5 +288,6 @@ if __name__ == "__main__":
         "controller_path": config.ctr_path,
         "scaler_path": config.scaler_path,
         "record_laps": config.RECORD_LAPS,
+        "extended_telem": config.EXTENDED_TELEM,
     }
     run_client(conf)

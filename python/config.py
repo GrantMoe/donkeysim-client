@@ -5,14 +5,22 @@ ctr_path = '/dev/input/by-id/usb-Microsoft_Controller_30393634313137393836353934
 scaler_path = '/home/grant/projects/capstone/data/11_12_2021/19_28_18/ss_scaler_11_19_01_16.pkl'
 model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_178.h5'
 RECORD_LAPS = False
+HAS_TELEM = True
+EXTENDED_TELEM = False
+
+DEFAULT_TRACK = 'mountain_road'
+DEFAULT_DATA_FORMAT = 'CSV'
+DEFAULT_IMAGE_FORMAT = 'png'
+DEFAULT_IMAGE_DEPTH = 1
+DEFAULT_DRIVE_MODE = 'manual'
 
 racer_conf = {
     'msg_type' : 'racer_info',
     'racer_name' : 'Grant',
-    'car_name' : 'Garnt',
-    'bio' : 'cargo cultist',
+    'car_name' : '¯\_(ツ)_/¯',
+    'bio' : 'Just this guy, you know?',
     'country' : 'California',
-    'guid' : "GUID"
+    'guid' : "8675309"
 }
 
 # Car config
@@ -25,8 +33,8 @@ car_conf = {
     'body_r': 234, # orange=255, pink=234
     'body_g' : 21, # orange=72, pink=21 
     'body_b' : 144, # orange=0, pink=144 
-    'car_name' : '', 
-    'font_size' : 10,
+    'car_name' : '¯\_(ツ)_/¯', #'A 1985 Toyota Camry', ' ∅ ', # 
+    'font_size' : 50,
 }
 
 # Camera config
@@ -43,9 +51,9 @@ cam_conf = {
     'fov' : 0, 
     'fish_eye_x' : 0.0, 
     'fish_eye_y' : 0.0, 
-    'img_w' : 64, 
-    'img_h' : 64, 
-    'img_d' : 1, 
+    # 'img_w' : 64, 
+    # 'img_h' : 64, 
+    'img_d' : 3, 
     'img_enc' : 'PNG', 
     'offset_x' : 0.0, 
     'offset_y' : 0.0, 
@@ -72,7 +80,6 @@ def msg_builder(config_dict):
     return msg_string
 
 
-HAS_TELEM = True
 telem_data = [
     'speed',
     'pitch', 
@@ -104,6 +111,7 @@ tracks = [
     'mini_monaco', 
     'warren', 
     'circuit_launch',
+    'mountain_track'
     ]
 
 data_formats = [

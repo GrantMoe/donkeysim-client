@@ -15,15 +15,15 @@ class SimRecorder:
         data_format = conf.data_format 
         image_format = conf.image_format
         image_depth = conf.image_depth
+        extended_telem = conf.extended_telem
         if data_format == 'tub':
             self.recorder = TubRecorder(image_format, image_depth)
         elif data_format == 'CSV':
-            self.recorder = CSVRecorder(image_format, image_depth)
+            self.recorder = CSVRecorder(image_format, image_depth, extended_telem)
         elif data_format == 'ASL':
             self.recorder = ASLRecorder(image_format, image_depth)
         else:
             self.recorder = None
-
     def record(self, json_packet):
         self.recorder.record(json_packet)
 
@@ -150,7 +150,7 @@ class LapRecorder:
 
 class CSVRecorder:
 
-    csv_cols = [
+    extended_cols = [
             'steering_angle', 'throttle', 'speed', 'image', 'hit', 
             'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
             'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll', 
@@ -158,17 +158,28 @@ class CSVRecorder:
             'pos_z', 'vel_x', 'vel_y', 'vel_z', 'on_road', 
             'progress_on_shortest_path', 'lap'
             ]
+    
+    standard_cols = [
+            'steering_angle', 'throttle', 'speed', 'image', 'hit',
+            'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
+            'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll',
+            'activeNode', 'totalNodes', 'lap'
+            ]
 
-    def __init__(self, image_format, image_depth):
+    def __init__(self, image_format, image_depth, extended_telem):
         time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
         self.dir = f'{os.getcwd()}/../data/{time_str}'
         os.makedirs(self.dir, exist_ok=True)
         self.img_dir = f'{self.dir}/images'
         os.makedirs(self.img_dir, exist_ok=True)
         self.csv_file_path = f'{self.dir}/data.csv'
+        if extended_telem:
+            cols = self.extended_cols
+        else:
+            cols = self.standard_cols
         with open(self.csv_file_path, 'w', newline='') as csv_outfile:
             row_writer = csv.writer(csv_outfile)
-            row_writer.writerow(self.csv_cols)
+            row_writer.writerow(cols)
         self.image_format = image_format
         self.image_depth = image_depth
         print(self.csv_file_path)
