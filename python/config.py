@@ -1,24 +1,45 @@
 ## File for holding configuration for donkey sim client
-
 ctr_type = 'xbox' 
 ctr_path = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
-scaler_path = '/home/grant/projects/capstone/data/11_12_2021/19_28_18/ss_scaler_11_19_01_16.pkl'
-model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_178.h5'
+
+
+model_number = 28
+model_path = f'/home/grant/projects/vrl/models/model_{model_number}.h5'
+
+# 0-3:      ss_scaler_01_14_20_10
+# 4-7:      ss_scaler_01_14_23_31
+# 8:        ss_scaler_01_15_00_38
+# 9-12:     ss_scaler_01_15_01_46
+# 13-15:    ss_scaler_01_15_18_19
+# 16:       ss_scaler_01_15_19_58
+# 17-20:    ss_scaler_01_16_00_26
+# 21-23     ss_scaler_01_16_01_28
+# 24-27:    ss_scaler_01_17_16_00
+# 28-31:    ss_scaler_01_17_16_56
+# 32-34:    ss_scaler_01_17_17_39
+
+scaler_name = 'ss_scaler_01_17_16_56'
+scaler_path = f'/home/grant/projects/vrl/data/scalers/{scaler_name}.pkl'
+
+
+
 RECORD_LAPS = False
 HAS_TELEM = True
 EXTENDED_TELEM = False
 
-DEFAULT_TRACK = 'mountain_road'
-DEFAULT_DATA_FORMAT = 'CSV'
+DEFAULT_TRACK = 'mountain_track'
+DEFAULT_DATA_FORMAT = None #'CSV'
 DEFAULT_IMAGE_FORMAT = 'png'
 DEFAULT_IMAGE_DEPTH = 1
-DEFAULT_DRIVE_MODE = 'manual'
+DEFAULT_DRIVE_MODE = 'auto' # 'manual'
+DEFAULT_HOST = "127.0.0.1" #
+# DEFAULT_HOST = "donkey-sim.roboticist.dev" # twitch server
 
 racer_conf = {
     'msg_type' : 'racer_info',
     'racer_name' : 'Grant',
-    'car_name' : '¯\_(ツ)_/¯',
-    'bio' : 'Just this guy, you know?',
+    # 'car_name' : 'Grant',
+    'bio' : '¯\_(ツ)_/¯',
     'country' : 'California',
     'guid' : "8675309"
 }
@@ -33,7 +54,7 @@ car_conf = {
     'body_r': 234, # orange=255, pink=234
     'body_g' : 21, # orange=72, pink=21 
     'body_b' : 144, # orange=0, pink=144 
-    'car_name' : '¯\_(ツ)_/¯', #'A 1985 Toyota Camry', ' ∅ ', # 
+    'car_name' : 'Grant', #'A 1985 Toyota Camry', ' ∅ ', # 
     'font_size' : 50,
 }
 
@@ -86,18 +107,18 @@ telem_data = [
     'yaw',
     'roll',
     'activeNode',
-    'pos_x',
-    'pos_z',
-    'accel_x',
-    'accel_y',
-    'accel_z',
-    'gyro_x',
-    'gyro_y',
-    'gyro_z',
-    'gyro_w',
-    'vel_x',
-    'vel_y',
-    'vel_z',
+    # 'pos_x',
+    # 'pos_z',
+    # 'accel_x',
+    # 'accel_y',
+    # 'accel_z',
+    # 'gyro_x',
+    # 'gyro_y',
+    # 'gyro_z',
+    # 'gyro_w',
+    # 'vel_x',
+    # 'vel_y',
+    # 'vel_z',
 ]
 
 # 0 is default
@@ -139,3 +160,20 @@ drive_modes = [
     'telem_test',
 ]
 
+# telemetry columns
+# msg_type removed, lap added by me
+
+extended_cols = [
+        'steering_angle', 'throttle', 'speed', 'image', 'hit', 
+        'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
+        'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll', 
+        'cte', 'activeNode', 'totalNodes', 'pos_x', 'pos_y', 
+        'pos_z', 'vel_x', 'vel_y', 'vel_z', 'lap'
+        ]
+
+standard_cols = [
+        'steering_angle', 'throttle', 'speed', 'image', 'hit',
+        'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
+        'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll',
+        'activeNode', 'totalNodes', 'lap'
+        ]

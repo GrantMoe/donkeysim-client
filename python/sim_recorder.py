@@ -8,6 +8,8 @@ import base64
 from io import BytesIO
 from PIL import Image
 
+import config
+
 
 class SimRecorder:
 
@@ -150,22 +152,6 @@ class LapRecorder:
 
 class CSVRecorder:
 
-    extended_cols = [
-            'steering_angle', 'throttle', 'speed', 'image', 'hit', 
-            'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
-            'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll', 
-            'cte', 'activeNode', 'totalNodes', 'pos_x', 'pos_y', 
-            'pos_z', 'vel_x', 'vel_y', 'vel_z', 'on_road', 
-            'progress_on_shortest_path', 'lap'
-            ]
-    
-    standard_cols = [
-            'steering_angle', 'throttle', 'speed', 'image', 'hit',
-            'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
-            'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll',
-            'activeNode', 'totalNodes', 'lap'
-            ]
-
     def __init__(self, image_format, image_depth, extended_telem):
         time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
         self.dir = f'{os.getcwd()}/../data/{time_str}'
@@ -174,9 +160,9 @@ class CSVRecorder:
         os.makedirs(self.img_dir, exist_ok=True)
         self.csv_file_path = f'{self.dir}/data.csv'
         if extended_telem:
-            cols = self.extended_cols
+            cols = config.extended_cols
         else:
-            cols = self.standard_cols
+            cols = config.standard_cols
         with open(self.csv_file_path, 'w', newline='') as csv_outfile:
             row_writer = csv.writer(csv_outfile)
             row_writer.writerow(cols)

@@ -3,6 +3,7 @@ import fcntl
 import os
 import sys
 import libevdev
+import math
 from libevdev import *
 
 ev_map = {
@@ -20,8 +21,8 @@ ev_map = {
         'button': {
             'a_button': libevdev.EV_KEY.BTN_SOUTH,
             'b_button': libevdev.EV_KEY.BTN_EAST,
-            'y_button': libevdev.EV_KEY.BTN_NORTH,
-            'x_button': libevdev.EV_KEY.BTN_WEST,
+            'y_button': libevdev.EV_KEY.BTN_WEST, # note switch 
+            'x_button': libevdev.EV_KEY.BTN_NORTH, # note switch
             'left_shoulder': libevdev.EV_KEY.BTN_TL,
             'right_shoulder': libevdev.EV_KEY.BTN_TR,
             'select_button': libevdev.EV_KEY.BTN_SELECT,
@@ -85,8 +86,26 @@ class Controller:
         v_max = self.dev_.absinfo[ev].maximum
         return (high - low) * (v_val - v_min) / (v_max - v_min) + low
 
+
+    def exp(self, ax, low=-1.0, high=1.0, s=9,):
+
+        ev = self.map_['axis'][ax]
+        v_val = self.dev_.value[ev]
+        v_min = self.dev_.absinfo[ev].minimum
+        v_max = self.dev_.absinfo[ev].maximum
+        x = (high - low) * (v_val - v_min) / (v_max - v_min) + low
+        # return x
+        # return (math.exp((10-s)*x)-1) / (math.exp(10-s)-1)
+        # return (x*x*x * (k-1) + x) / k
+        if x < 0:
+            return -(math.exp((10-s)*abs(x))-1) / (math.exp(10-s)-1)
+        else:
+            return (math.exp((10-s)*x)-1) / (math.exp(10-s)-1)
+
     def button(self, btn):
         return self.dev_.value[self.map_['button'][btn]]
+
+
 
 
 
@@ -99,8 +118,11 @@ def main():
         rv = ctr.norm('left_trigger', 0.0, -1.0)
         if abs(st) < 0.07:
             st = 0.0
+        os.system('clear')
         print("st: {}, th: {}".format(st, (fw+rv)))
+        for btn in ev_map['xbox']['button'].keys():
+            if ctr.button(btn):
+                print(btn)
         # self.send_controls(st * 0.5, 0.5 * (fw + rv))
-
 if __name__ == "__main__":
     main()
