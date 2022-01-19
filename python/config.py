@@ -1,10 +1,15 @@
 ## File for holding configuration for donkey sim client
 ctr_type = 'xbox' 
 ctr_path = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
+model_history_path = '/home/grant/projects/vrl/models/model_history.csv'
+model_directory = '/home/grant/projects/vrl/models'
+scaler_directory = '/home/grant/projects/vrl/data/scalers'
 
+# model_number = 28
+# model_path = f'/home/grant/projects/vrl/models/model_{model_number}.h5'
+# model_directory = '/home/grant/projects/vrl/models'
+# scaler_directory = '/home/grant/projects/vrl/data/scalers'
 
-model_number = 28
-model_path = f'/home/grant/projects/vrl/models/model_{model_number}.h5'
 
 # 0-3:      ss_scaler_01_14_20_10
 # 4-7:      ss_scaler_01_14_23_31
@@ -18,9 +23,8 @@ model_path = f'/home/grant/projects/vrl/models/model_{model_number}.h5'
 # 28-31:    ss_scaler_01_17_16_56
 # 32-34:    ss_scaler_01_17_17_39
 
-scaler_name = 'ss_scaler_01_17_16_56'
-scaler_path = f'/home/grant/projects/vrl/data/scalers/{scaler_name}.pkl'
-
+# scaler_name = 'ss_scaler_01_17_16_56'
+# scaler_path = f'/home/grant/projects/vrl/data/scalers/{scaler_name}.pkl'
 
 
 RECORD_LAPS = False
@@ -54,7 +58,7 @@ car_conf = {
     'body_r': 234, # orange=255, pink=234
     'body_g' : 21, # orange=72, pink=21 
     'body_b' : 144, # orange=0, pink=144 
-    'car_name' : 'Grant', #'A 1985 Toyota Camry', ' ∅ ', # 
+    'car_name' : '', #'Grant', #'A 1985 Toyota Camry', ' ∅ ', # 
     'font_size' : 50,
 }
 
@@ -101,12 +105,12 @@ def msg_builder(config_dict):
     return msg_string
 
 
-telem_data = [
-    'speed',
-    'pitch', 
-    'yaw',
-    'roll',
-    'activeNode',
+# telem_data = [
+    # 'speed',
+    # 'pitch', 
+    # 'yaw',
+    # 'roll',
+    # 'activeNode',
     # 'pos_x',
     # 'pos_z',
     # 'accel_x',
@@ -119,7 +123,7 @@ telem_data = [
     # 'vel_x',
     # 'vel_y',
     # 'vel_z',
-]
+# ]
 
 # 0 is default
 tracks = [

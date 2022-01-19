@@ -114,24 +114,23 @@ class SimpleClient(SDClient):
                 self.all_nodes = set(range(json_packet['totalNodes']))
             self.lap_nodes.add(json_packet['activeNode'])
 
-            # don't try to start predicting without an image
             if self.drive_mode == "auto":
+                # don't try to start predicting without an image
                 if not self.current_image:
                     print('got first image')
+                # decode image
                 self.current_image = Image.open(
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
-                # self.current_telem = [json_packet[sensor] for sensor in config.telem_data]
-                # self.current_telem.append((self.current_lap == 1) * 1) # first lap
-                
-                self.current_telem = [json_packet[sensor] for sensor in config.telem_data if sensor != 'activeNode']
-                self.current_telem.append((self.current_lap == 1) * 1) # first lap
-                
-                if 'activeNode' in config.telem_data:
+                # handle telemetry
+                json_packet['first_lap'] = (self.current_lap == 1) * 1
+                # add telemetry from json
+                self.current_telem = [json_packet[x] for x in self.pilot.telemetry_columns if not x.startswith('activeNode_')]
+                # add activeNode dummy columns if necessary
+                if 'activeNode_0' in self.pilot.telemetry_columns:
                     node_dummies = [0] * 250
                     node_dummies[json_packet['activeNode']] = 1
                     self.current_telem.extend(node_dummies)
-                # self.current_telem.append((self.current_lap == 1) * 1) # first lap
 
             # Don't record if you haven't started yet.
             if self.recorder and json_packet['throttle'] > 0.0:
@@ -335,10 +334,14 @@ if __name__ == "__main__":
                         default=config.DEFAULT_DRIVE_MODE, 
                         help="manual control or autopilot", 
                         choices=config.drive_modes,) 
-    parser.add_argument("--model_path", 
-                        type=str, 
-                        default=config.model_path,
-                        help="path to model for inferencing",) 
+    # parser.add_argument("--model_path", 
+    #                     type=str, 
+    #                     default=config.model_path,
+    #                     help="path to model for inferencing",) 
+    parser.add_argument("--model_number",
+                        type=int,
+                        default=None,
+                        help='model_history index for model and scaler paths')
     args = parser.parse_args()
     conf = {
         "host": args.host,
@@ -348,12 +351,14 @@ if __name__ == "__main__":
         "image_format": args.image_format,
         "image_depth": args.image_channels,
         "drive_mode": args.drive_mode,
-        "model_path": args.model_path,
+        # "model_path": args.model_path,
         "track": args.track,
         "controller_type": config.ctr_type,
         "controller_path": config.ctr_path,
-        "scaler_path": config.scaler_path,
+        # "scaler_path": config.scaler_path,
         "record_laps": config.RECORD_LAPS,
         "extended_telem": config.EXTENDED_TELEM,
+        "model_number": args.model_number,
+        "model_history": config.model_history_path,
     }
     run_client(conf)
