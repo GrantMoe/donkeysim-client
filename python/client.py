@@ -7,6 +7,7 @@ import base64
 import json
 import os
 import time
+import logging
 
 import config
 
@@ -15,6 +16,7 @@ from re import T
 from PIL import Image
 
 from gym_donkeycar.core.sim_client import SDClient
+
 from autopilot import Autopilot
 from controller import Controller
 from sim_recorder import SimRecorder, LapRecorder
@@ -23,7 +25,7 @@ class SimpleClient(SDClient):
 
     def __init__(self, address, conf=None, poll_socket_sleep_time=0.01):
         super().__init__(*address, poll_socket_sleep_time=poll_socket_sleep_time)
-        self.data_format = conf['data_format']
+        self.record_format = conf['record_format']
         self.car_loaded = False
         self.start_recording = False
         self.image_depth = conf['image_depth']
@@ -32,33 +34,48 @@ class SimpleClient(SDClient):
         self.extended_telem = conf['extended_telem']
         self.current_lap = 0
         self.lap_start = None
-        self.node = 0
         self.update_delay = 1.0
         self.last_update = time.time()
         self.cte = 0 
-        self.max_cte = 0
-        self.min_cte = 0
         self.st_ctl = 0
         self.th_ctl = 0
+
+        self.frames_this_second = 0
+        self.frame_count = 0
+
+        self.fps_index = 0
+        self.fps_list = [0,0,0,0,0,0,0,0,0,0]
+
+        self.driving = True
+        self.current_node = 0
+
+        self.lap_nodes = set()
+        self.all_nodes = None
         # self.x = 0
         # self.y = 0
         # self.z = 0
+        # self.node = 0
+        self.pilot = None
+
         self.fresh_data = False
         self.recorder = None
         self.record_laps = conf['record_laps']
 
-        if self.drive_mode == 'auto':
-            self.current_image = None
-            self.ctr = Autopilot(conf)
-        elif self.drive_mode in ('manual', 'telem_test'):
-            self.ctr = Controller(ctr_type=conf['controller_type'], 
-                                  path=conf['controller_path'])
-            if self.drive_mode == 'telem_test':
-                self.update_delay = 1.0
-                self.prev_node = None
-                self.last_update = time.time()
+        self.refresh_sim = False
 
-        if self.data_format:
+        if self.drive_mode == 'auto':
+            self.driving = False
+            self.current_image = None
+            self.pilot = Autopilot(conf)
+            # time.sleep(0.5)
+        self.ctr = Controller(ctr_type=conf['controller_type'], 
+                                path=conf['controller_path'])
+            # if self.drive_mode == 'telem_test':
+            #     self.update_delay = 1.0
+            #     self.prev_node = None
+            #     self.last_update = time.time()
+
+        if self.record_format:
             self.recorder = SimRecorder(self)
         if self.record_laps:
             self.lap_recorder = LapRecorder(conf)
@@ -66,54 +83,69 @@ class SimpleClient(SDClient):
 
     def on_msg_recv(self, json_packet):
 
+        # telemetry will flood the output, starting line is redundant with below checks
+        if json_packet['msg_type'] not in ["telemetry", "collision_with_starting_line"]:
+            print("got:", json_packet)
+
         if json_packet['msg_type'] == "need_car_config":
             self.send_config()
+
         if json_packet['msg_type'] == "car_loaded":
-            self.car_loaded = True
-        if json_packet['msg_type'] not in ["telemetry", "collision_with_starting_line"]:     
-            print("got:", json_packet)
-        
+            # self.send_config()
+            self.car_loaded = True        
+
         if json_packet['msg_type'] == "collision_with_starting_line":
-            if self.current_lap != 0:
+            # display time + resent progress if it was a full lap
+            if len(self.all_nodes - self.lap_nodes) <= 10: # allow for skipped 
                 lap_time = json_packet['timeStamp'] - self.lap_start
                 print(f"Lap: {self.current_lap}: {round(lap_time, 2)}")
+                self.lap_nodes.clear()
+            else: 
+                # display '-' for time if not a complete lap
+                print(f"Lap: {self.current_lap}: -")
+            # iterate lap
             self.lap_start = json_packet['timeStamp']
             self.current_lap += 1
+            # record laps if tracking thing separately
             if self.record_laps:
                 self.lap_recorder.record(self.current_lap, json_packet['timeStamp'])
+
         if json_packet['msg_type'] == "telemetry":
-            # self.x = json_packet['pos_x']
-            # self.y = json_packet['pos_y']
-            # self.z = json_packet['pos_z']
-            self.node = json_packet['activeNode']
-            current_time = time.time()
-            if current_time - self.last_update >= self.update_delay:
-                if self.drive_mode == 'telem_test':
-                    telem_keys = ['accel_x', 'accel_y', 'accel_z', 'gyro_x', 'gyro_y', 'gyro_z', 'vel_x', 'vel_y', 'vel_z']
-                    os.system('clear')
-                    print('===========================')
-                    for key in telem_keys:
-                        if 'gyro' in key:
-                            print(f'{key}: {json_packet[key]*1000:.3f}')
-                        else:    
-                            print(f'{key}: {json_packet[key]:.3f}')
-                    print('===========================')
-                    self.last_update = current_time
-            del json_packet['msg_type']
-            if self.drive_mode == "auto":
+
+            # track lap progress
+            if not self.all_nodes:
+                self.all_nodes = set(range(json_packet['totalNodes']))
+            self.lap_nodes.add(json_packet['activeNode'])
+
+            if self.drive_mode == "auto" and self.pilot:
+                # don't try to start predicting without an image
                 if not self.current_image:
                     print('got first image')
+                # decode image
                 self.current_image = Image.open(
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
-                self.current_telem = [json_packet[sensor] for sensor in config.telem_data]
+                # handle telemetry
+                # add telemetry from json. don't try to add dummy columns that don't exist
+                self.current_telem = [json_packet[x] for x in self.pilot.telemetry_columns if not x.startswith('activeNode_')]
+                # add activeNode dummy columns if necessary
+                if 'activeNode_0' in self.pilot.telemetry_columns:
+                    node_dummies = [0] * 250
+                    node_dummies[json_packet['activeNode']] = 1
+                    self.current_telem.extend(node_dummies)
+
             # Don't record if you haven't started yet.
             if self.recorder and json_packet['throttle'] > 0.0:
                 self.start_recording = True
+
+            # record image/telemetry
+            del json_packet['msg_type']
             if self.start_recording:
-                json_packet['lap'] = self.current_lap
+                json_packet['lap'] = self.current_lap # for sake o tub experiment
                 self.recorder.record(json_packet)
+
             self.fresh_data = True    
+
 
     def send_config(self):
         # Racer
@@ -149,30 +181,54 @@ class SimpleClient(SDClient):
             inputs = self.current_image, self.current_telem
         else:
             inputs = [self.current_image]
-        steering, throttle = self.ctr.infer(inputs)
+        steering, throttle = self.pilot.infer(inputs)
         return steering, throttle
 
 
     def manual_update(self, st_scale=1.0, th_scale=1.0):
         # get normed inputs from controller
-        self.ctr.update()
-        st = self.ctr.norm('left_stick_horz', -1.0, 1.0) 
-        fw = self.ctr.norm('right_trigger', 0.0, 1.0)
-        rv = self.ctr.norm('left_trigger', 0.0, -1.0)
-        if abs(st) < 0.07:
+        st = self.ctr.norm(ax='left_stick_horz', low=-1.0, high=1.0)
+        # e-brake
+        if self.ctr.button('a_button'):
+            fw = 0.0
+            rv = -1.0
+        else:
+            fw = self.ctr.norm(ax='right_trigger', low=0.0, high=1.0)
+            rv = self.ctr.norm(ax='left_trigger', low=0.0, high=-1.0)
+        if abs(st) < 0.05:
             st = 0.0
         return st*st_scale, (fw + rv)*th_scale
 
     def update(self):
+        steering = 0
+        throttle = 0
+        self.ctr.update()
+        if not self.driving:
+            if self.ctr.button('start_button'):
+                print('Driving started')
+                self.driving = True
+        else:
+            if self.ctr.button('select_button'):
+                print('Driving stopped')
+                self.driving = False
+        if self.ctr.button('y_button'):
+            self.reset_car()
+            # self.driving = False
         if self.drive_mode == 'auto':
             if not self.current_image:
                 print("Waiting for first image")
                 return 
-            steering, throttle = self.auto_update()
+            if self.fresh_data:
+                steering, throttle = self.auto_update()
+                self.fresh_data = False
         elif self.drive_mode in ('manual', 'telem_test'):
             steering, throttle = self.manual_update()
         self.st_ctl = steering
         self.th_ctl = throttle
+
+        if self.driving:
+            self.send_controls(steering, throttle)
+
         # current_time = time.time()
         # if current_time - self.last_update >= self.update_delay:
         #     os.system('clear')
@@ -182,9 +238,16 @@ class SimpleClient(SDClient):
         #     print(f'lap: {self.current_lap}')
         #     print('===========================')
         #     self.last_update = current_time
-        if self.fresh_data:
-            self.send_controls(steering, throttle)
-            self.fresh_data = False
+        # if self.fresh_data:
+            # self.send_controls(steering, throttle)
+        
+    def reset_car(self):
+        self.refresh_sim = True
+        self.stop()
+        # msg = '{ "msg_type" : "reset_car" }'
+        # self.send(msg)
+        #this sleep lets the SDClient thread poll our message and send it out.
+        # time.sleep(self.poll_socket_sleep_sec)
 
     def stop(self):
         print(f'Client stopping after {self.current_lap-1} laps.')
@@ -193,52 +256,59 @@ class SimpleClient(SDClient):
 
 # Create client and connect it with the simulator
 def run_client(conf):
-    host = "trainmydonkey.com" # conf["host"] # "trainmydonkey.com" for virtual racing
-    port = 9091 # conf["port"]
-    client = SimpleClient(address=(host, port), conf=conf,)
+    # logging.basicConfig(level=logging.DEBUG)
 
+    host = conf["host"] # "trainmydonkey.com" for virtual racing
+    port = conf["port"]
+    client = SimpleClient(address=(host, port), conf=conf,)
     # Load Track
     msg = f'{{"msg_type" : "load_scene", "scene_name" : "{conf["track"]}"}}'
     client.send(msg)
     loaded = False
     while(not loaded):
-        time.sleep(1.0)
+        time.sleep(0.5)
         loaded = client.car_loaded           
-    # time.sleep(1)
 
     # doesn't work when this isn't here
     # Configure Car
     client.send_config()
 
+    print('ready to drive')
+    
     # Drive car
-    do_drive = True
-    while do_drive:
+    run_sim = True
+    while run_sim:
         try:
             client.update()
+            # if client.driving:
+                # client.send_controls(client.st_ctl, client.th_ctl)
             if client.aborted:
                 print("Client aborted, stopping driving.")
-                do_drive = False
+                run_sim = False
+            if client.refresh_sim:
+                print("Refreshing sim")
+                run_sim = False
         except KeyboardInterrupt:
-            do_drive = False
-        # time.sleep(0.05)
-    
-    time.sleep(1.0)
+            run_sim = False
+        time.sleep(0.1)
 
-    # Exit Scene
-    msg = '{ "msg_type" : "exit_scene" }'
-    client.send(msg)
-    time.sleep(1.0)
+    # Exit Scene ## DON'T DO THIS IF YOU'RE ON THE SERVER
+    if conf['host'] == "127.0.0.1":
+        msg = '{ "msg_type" : "exit_scene" }'
+        client.send(msg)
+        time.sleep(0.2)
+
     # Close down client
     print("waiting for msg loop to stop")
     client.stop()
-    print("client stopped")
+    return client.refresh_sim
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="donkeysim_client")
     parser.add_argument("--host", 
                         type=str, 
-                        default="trainmydonkey.com", #"127.0.0.1", 
+                        default=config.DEFAULT_HOST, 
                         help="host to use for tcp",)
     parser.add_argument("--port", 
                         type=int, 
@@ -249,11 +319,11 @@ if __name__ == "__main__":
                         default=config.DEFAULT_TRACK,
                         help="name of donkey sim environment", 
                         choices=config.tracks,)
-    parser.add_argument("--data_format", 
+    parser.add_argument("--record_format", 
                         type=str, 
-                        default=config.DEFAULT_DATA_FORMAT,
+                        default=config.DEFAULT_RECORD_FORMAT,
                         help="recording format", 
-                        choices=config.data_formats) 
+                        choices=config.record_formats) 
     parser.add_argument("--image_format", 
                         type=str, 
                         default=config.DEFAULT_IMAGE_FORMAT, 
@@ -269,25 +339,33 @@ if __name__ == "__main__":
                         default=config.DEFAULT_DRIVE_MODE, 
                         help="manual control or autopilot", 
                         choices=config.drive_modes,) 
-    parser.add_argument("--model_path", 
-                        type=str, 
-                        default=config.model_path,
-                        help="path to model for inferencing",) 
+    # parser.add_argument("--model_path", 
+    #                     type=str, 
+    #                     default=config.model_path,
+    #                     help="path to model for inferencing",) 
+    parser.add_argument("--model_number",
+                        type=int,
+                        default=None,
+                        help='model_history index for model and scaler paths')
     args = parser.parse_args()
     conf = {
         "host": args.host,
         "port": args.port,
-        "data_format": args.data_format,
-        "start_delay": 1,
+        "record_format": args.record_format,
         "image_format": args.image_format,
         "image_depth": args.image_channels,
         "drive_mode": args.drive_mode,
-        "model_path": args.model_path,
         "track": args.track,
         "controller_type": config.ctr_type,
         "controller_path": config.ctr_path,
-        "scaler_path": config.scaler_path,
         "record_laps": config.RECORD_LAPS,
         "extended_telem": config.EXTENDED_TELEM,
+        "model_number": args.model_number,
+        "model_history": config.model_history_path,
     }
-    run_client(conf)
+    while True: 
+        refresh = run_client(conf)
+        if not refresh:
+            break
+    print("client stopped")
+

@@ -1,15 +1,20 @@
 # Used as controller for donkey client. Takes image and makes predictions
 # of steering and throttle with its model.
+import csv
 import numpy as np
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 import pickle
 
+import config
+
 class Autopilot:
 
     def __init__(self, conf):
-        self.model = load_model(conf['model_path'])
-        self.scaler = pickle.load(open(conf['scaler_path'], 'rb'))
+        data = model_paths(conf['model_history'], conf['model_number'])
+        self.model = load_model(f"{config.model_directory}/{data['model_file']}")
+        self.scaler = pickle.load(open(f"{config.scaler_directory}/{data['scaler_file']}", 'rb'))
+        self.telemetry_columns = data['telemetry_columns']
 
     def convert_image(self, img):
         img_array = img_to_array(img)
@@ -32,3 +37,16 @@ class Autopilot:
     # x'  = (b - a) * ( (x - x_min) / (x_max - x_min) ) + a
     # def norm(self, x, x_min=-.0, x_max=1.0, low=-0.64, high=0.64):
     #     return (high - low) * (x - x_min) / (x_max - x_min) + low
+
+def model_paths(model_history_file, model_number):
+    with open(model_history_file) as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+        # print(f'model_number = {model_number}')
+        # print(csv_reader[f'{model_number}'])
+        for row in csv_reader:
+            if int(row['model_index']) == model_number:
+                return {
+                    'model_file': row['model_file'], 
+                    'scaler_file': row['scaler_file'], 
+                    'telemetry_columns': eval(row['telemetry_columns'])  
+                    }

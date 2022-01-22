@@ -1,24 +1,27 @@
 ## File for holding configuration for donkey sim client
-
 ctr_type = 'xbox' 
 ctr_path = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
-scaler_path = '/home/grant/projects/capstone/data/11_12_2021/19_28_18/ss_scaler_11_19_01_16.pkl'
-model_path = '/home/grant/projects/capstone/models/11_12_2021/19_28_18/model_178.h5'
+model_history_path = '/home/grant/projects/vrl/models/model_history.csv'
+model_directory = '/home/grant/projects/vrl/models'
+scaler_directory = '/home/grant/projects/vrl/data/scalers'
+
 RECORD_LAPS = False
 HAS_TELEM = True
-EXTENDED_TELEM = False
+EXTENDED_TELEM = True
 
-DEFAULT_TRACK = 'mountain_road'
-DEFAULT_DATA_FORMAT = 'CSV'
-DEFAULT_IMAGE_FORMAT = 'png'
-DEFAULT_IMAGE_DEPTH = 1
-DEFAULT_DRIVE_MODE = 'manual'
+DEFAULT_TRACK = 'mountain_track'
+DEFAULT_RECORD_FORMAT = 'tub' #None # 'CSV' # None, 'ASL', 'CSV', 'tub'
+DEFAULT_IMAGE_FORMAT = 'PNG' # 'JPG', 'PNG', 'TGA'
+DEFAULT_IMAGE_DEPTH = 1 # 1, 3
+DEFAULT_DRIVE_MODE =  'manual' # 'auto', 'manual' 
+DEFAULT_HOST = "127.0.0.1" #
+# DEFAULT_HOST = "donkey-sim.roboticist.dev" # twitch server
 
 racer_conf = {
     'msg_type' : 'racer_info',
     'racer_name' : 'Grant',
-    'car_name' : '¯\_(ツ)_/¯',
-    'bio' : 'Just this guy, you know?',
+    # 'car_name' : 'Grant',
+    'bio' : '¯\_(ツ)_/¯',
     'country' : 'California',
     'guid' : "8675309"
 }
@@ -33,7 +36,7 @@ car_conf = {
     'body_r': 234, # orange=255, pink=234
     'body_g' : 21, # orange=72, pink=21 
     'body_b' : 144, # orange=0, pink=144 
-    'car_name' : '¯\_(ツ)_/¯', #'A 1985 Toyota Camry', ' ∅ ', # 
+    'car_name' : '', #'Grant', #'A 1985 Toyota Camry', ' ∅ ', # 
     'font_size' : 50,
 }
 
@@ -70,7 +73,6 @@ def car_config():
 def racer_config():
     return msg_builder(racer_conf)
 
-
 # This is silly
 def msg_builder(config_dict):
     msg_string = "{"
@@ -78,27 +80,6 @@ def msg_builder(config_dict):
         msg_string += f'"{key}" : "{value}", '
     msg_string += "}"
     return msg_string
-
-
-telem_data = [
-    'speed',
-    'pitch', 
-    'yaw',
-    'roll',
-    'activeNode',
-    'pos_x',
-    'pos_z',
-    'accel_x',
-    'accel_y',
-    'accel_z',
-    'gyro_x',
-    'gyro_y',
-    'gyro_z',
-    'gyro_w',
-    'vel_x',
-    'vel_y',
-    'vel_z',
-]
 
 # 0 is default
 tracks = [
@@ -114,7 +95,7 @@ tracks = [
     'mountain_track'
     ]
 
-data_formats = [
+record_formats = [
     None,
     'None', # default
     'CSV', # capstone
@@ -139,3 +120,20 @@ drive_modes = [
     'telem_test',
 ]
 
+# telemetry columns
+# msg_type removed, lap added by me
+
+extended_cols = [
+        'steering_angle', 'throttle', 'speed', 'image', 'hit', 
+        'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
+        'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll', 
+        'cte', 'activeNode', 'totalNodes', 'pos_x', 'pos_y', 
+        'pos_z', 'vel_x', 'vel_y', 'vel_z', 'lap'
+        ]
+
+standard_cols = [
+        'steering_angle', 'throttle', 'speed', 'image', 'hit',
+        'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
+        'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll',
+        'activeNode', 'totalNodes', 'lap'
+        ]
