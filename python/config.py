@@ -10,11 +10,11 @@ HAS_TELEM = True
 EXTENDED_TELEM = True
 
 DEFAULT_TRACK = 'mountain_track'
-DEFAULT_RECORD_FORMAT = 'tub' #None # 'CSV' # None, 'ASL', 'CSV', 'tub'
+DEFAULT_RECORD_FORMAT = 'CSV' # None, 'ASL', 'CSV', 'tub'
 DEFAULT_IMAGE_FORMAT = 'PNG' # 'JPG', 'PNG', 'TGA'
-DEFAULT_IMAGE_DEPTH = 1 # 1, 3
+DEFAULT_IMAGE_DEPTH = 1 # 1: greyscale, 3: rgb
 DEFAULT_DRIVE_MODE =  'manual' # 'auto', 'manual' 
-DEFAULT_HOST = "127.0.0.1" #
+DEFAULT_HOST = "127.0.0.1" # localhost 
 # DEFAULT_HOST = "donkey-sim.roboticist.dev" # twitch server
 
 racer_conf = {
@@ -66,14 +66,12 @@ cam_conf = {
 
 def cam_config():
     return msg_builder(cam_conf)
-
 def car_config():
     return msg_builder(car_conf)
-
 def racer_config():
     return msg_builder(racer_conf)
 
-# This is silly
+# This is silly, and should probably be somewhere else
 def msg_builder(config_dict):
     msg_string = "{"
     for key, value in config_dict.items():
@@ -81,48 +79,25 @@ def msg_builder(config_dict):
     msg_string += "}"
     return msg_string
 
-# 0 is default
-tracks = [
-    'generated_road', 
-    'warehouse', 
-    'sparkfun_avc', 
-    'generated_track', 
-    'roboracingleague_1', 
-    'waveshare', 
-    'mini_monaco', 
-    'warren', 
-    'circuit_launch',
-    'mountain_track'
-    ]
+tracks = ['generated_road', 'warehouse', 'sparkfun_avc', 'generated_track', 
+    'roboracingleague_1', 'waveshare', 'mini_monaco', 'warren', 
+    'circuit_launch', 'mountain_track']
 
 record_formats = [
     None,
-    'None', # default
-    'CSV', # capstone
+    'CSV',
     'tub', # Donkey Car
-    'ASL', # Slam
+    'ASL', # openvslam
 ]
 
-image_formats = [
-    'PNG', # default
-    'JPG',
-    'TGA'
-]
+image_formats = ['JPG', 'PNG', 'TGA' ]
+# 1 = BW, 3 = RGB
+image_depths = [1, 3]
 
-image_depths = [
-    1, #default
-    3, # RGB'
-]
-
-drive_modes = [
-    'manual', # default
-    'auto',
-    'telem_test',
-]
+drive_modes = [ 'auto', 'manual', 'telem_test']
 
 # telemetry columns
 # msg_type removed, lap added by me
-
 extended_cols = [
         'steering_angle', 'throttle', 'speed', 'image', 'hit', 
         'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
