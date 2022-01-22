@@ -14,15 +14,15 @@ import config
 class SimRecorder:
 
     def __init__(self, conf):
-        data_format = conf.data_format 
+        record_format = conf.record_format 
         image_format = conf.image_format
         image_depth = conf.image_depth
         extended_telem = conf.extended_telem
-        if data_format == 'tub':
+        if record_format == 'tub':
             self.recorder = TubRecorder(image_format, image_depth)
-        elif data_format == 'CSV':
+        elif record_format == 'CSV':
             self.recorder = CSVRecorder(image_format, image_depth, extended_telem)
-        elif data_format == 'ASL':
+        elif record_format == 'ASL':
             self.recorder = ASLRecorder(image_format, image_depth)
         else:
             self.recorder = None
