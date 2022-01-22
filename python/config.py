@@ -5,37 +5,15 @@ model_history_path = '/home/grant/projects/vrl/models/model_history.csv'
 model_directory = '/home/grant/projects/vrl/models'
 scaler_directory = '/home/grant/projects/vrl/data/scalers'
 
-# model_number = 28
-# model_path = f'/home/grant/projects/vrl/models/model_{model_number}.h5'
-# model_directory = '/home/grant/projects/vrl/models'
-# scaler_directory = '/home/grant/projects/vrl/data/scalers'
-
-
-# 0-3:      ss_scaler_01_14_20_10
-# 4-7:      ss_scaler_01_14_23_31
-# 8:        ss_scaler_01_15_00_38
-# 9-12:     ss_scaler_01_15_01_46
-# 13-15:    ss_scaler_01_15_18_19
-# 16:       ss_scaler_01_15_19_58
-# 17-20:    ss_scaler_01_16_00_26
-# 21-23     ss_scaler_01_16_01_28
-# 24-27:    ss_scaler_01_17_16_00
-# 28-31:    ss_scaler_01_17_16_56
-# 32-34:    ss_scaler_01_17_17_39
-
-# scaler_name = 'ss_scaler_01_17_16_56'
-# scaler_path = f'/home/grant/projects/vrl/data/scalers/{scaler_name}.pkl'
-
-
 RECORD_LAPS = False
 HAS_TELEM = True
-EXTENDED_TELEM = False
+EXTENDED_TELEM = True
 
 DEFAULT_TRACK = 'mountain_track'
-DEFAULT_DATA_FORMAT = None #'CSV'
-DEFAULT_IMAGE_FORMAT = 'png'
-DEFAULT_IMAGE_DEPTH = 1
-DEFAULT_DRIVE_MODE = 'auto' # 'manual'
+DEFAULT_RECORD_FORMAT = 'tub' #None # 'CSV' # None, 'ASL', 'CSV', 'tub'
+DEFAULT_IMAGE_FORMAT = 'PNG' # 'JPG', 'PNG', 'TGA'
+DEFAULT_IMAGE_DEPTH = 1 # 1, 3
+DEFAULT_DRIVE_MODE =  'manual' # 'auto', 'manual' 
 DEFAULT_HOST = "127.0.0.1" #
 # DEFAULT_HOST = "donkey-sim.roboticist.dev" # twitch server
 
@@ -95,7 +73,6 @@ def car_config():
 def racer_config():
     return msg_builder(racer_conf)
 
-
 # This is silly
 def msg_builder(config_dict):
     msg_string = "{"
@@ -103,27 +80,6 @@ def msg_builder(config_dict):
         msg_string += f'"{key}" : "{value}", '
     msg_string += "}"
     return msg_string
-
-
-# telem_data = [
-    # 'speed',
-    # 'pitch', 
-    # 'yaw',
-    # 'roll',
-    # 'activeNode',
-    # 'pos_x',
-    # 'pos_z',
-    # 'accel_x',
-    # 'accel_y',
-    # 'accel_z',
-    # 'gyro_x',
-    # 'gyro_y',
-    # 'gyro_z',
-    # 'gyro_w',
-    # 'vel_x',
-    # 'vel_y',
-    # 'vel_z',
-# ]
 
 # 0 is default
 tracks = [
@@ -139,7 +95,7 @@ tracks = [
     'mountain_track'
     ]
 
-data_formats = [
+record_formats = [
     None,
     'None', # default
     'CSV', # capstone

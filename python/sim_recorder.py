@@ -195,7 +195,7 @@ class TubRecorder:
         self.image_depth = image_depth
         self.record_count = 0
     
-    def record(self, json_packet, image):
+    def record(self, json_packet):
         image = Image.open(
             BytesIO(base64.b64decode(json_packet['image']))
             ).getchannel(self.image_depth)
