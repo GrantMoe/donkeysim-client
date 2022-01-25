@@ -6,14 +6,14 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 import pickle
 
-import config
+from config import MODEL_DIRECTORY, SCALER_DIRECTORY
 
 class Autopilot:
 
     def __init__(self, conf):
         data = model_paths(conf['model_history'], conf['model_number'])
-        self.model = load_model(f"{config.model_directory}/{data['model_file']}")
-        self.scaler = pickle.load(open(f"{config.scaler_directory}/{data['scaler_file']}", 'rb'))
+        self.model = load_model(f"{MODEL_DIRECTORY}/{data['model_file']}")
+        self.scaler = pickle.load(open(f"{SCALER_DIRECTORY}/{data['scaler_file']}", 'rb'))
         self.telemetry_columns = data['telemetry_columns']
 
     def convert_image(self, img):
@@ -25,7 +25,7 @@ class Autopilot:
         imu = np.array([inputs[1]])
         imu_in = self.scaler.transform(imu)
         img_in = img.reshape((1,)+img.shape)
-        pred = self.model([img_in, imu_in])
+        pred = self.model([img_in, imu_in], training=False)
         if isinstance(pred, list):
             st_pred = pred[0].numpy()[0][0]
             th_pred = pred[1].numpy()[0][0]

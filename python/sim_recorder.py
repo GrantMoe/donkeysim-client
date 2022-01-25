@@ -8,21 +8,21 @@ import base64
 from io import BytesIO
 from PIL import Image
 
-import config
+from config import EXTENDED_TELEMETRY_COLUMNS, STANDARD_TELEMETRY_COLUMNS
 
 
 class SimRecorder:
 
     def __init__(self, conf):
-        data_format = conf.data_format 
+        record_format = conf.record_format 
         image_format = conf.image_format
         image_depth = conf.image_depth
         extended_telem = conf.extended_telem
-        if data_format == 'tub':
+        if record_format == 'tub':
             self.recorder = TubRecorder(image_format, image_depth)
-        elif data_format == 'CSV':
+        elif record_format == 'CSV':
             self.recorder = CSVRecorder(image_format, image_depth, extended_telem)
-        elif data_format == 'ASL':
+        elif record_format == 'ASL':
             self.recorder = ASLRecorder(image_format, image_depth)
         else:
             self.recorder = None
@@ -160,9 +160,9 @@ class CSVRecorder:
         os.makedirs(self.img_dir, exist_ok=True)
         self.csv_file_path = f'{self.dir}/data.csv'
         if extended_telem:
-            cols = config.extended_cols
+            cols = EXTENDED_TELEMETRY_COLUMNS
         else:
-            cols = config.standard_cols
+            cols = STANDARD_TELEMETRY_COLUMNS
         with open(self.csv_file_path, 'w', newline='') as csv_outfile:
             row_writer = csv.writer(csv_outfile)
             row_writer.writerow(cols)

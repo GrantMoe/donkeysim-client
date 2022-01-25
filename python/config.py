@@ -1,19 +1,24 @@
 ## File for holding configuration for donkey sim client
-ctr_type = 'xbox' 
-ctr_path = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
-model_history_path = '/home/grant/projects/vrl/models/model_history.csv'
-model_directory = '/home/grant/projects/vrl/models'
-scaler_directory = '/home/grant/projects/vrl/data/scalers'
+CONTROLLER_TYPE = 'xbox' 
+CONTROLLER_PATH = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
+MODEL_HISTORY_PATH = '/home/grant/projects/vrl/models/model_history.csv'
+MODEL_DIRECTORY = '/home/grant/projects/vrl/models'
+# scaler_directory = '/home/grant/projects/vrl/data/scalers' # before model 117
+SCALER_DIRECTORY = '/home/grant/projects/vrl/scalers' 
+
+AUTO_TIMEOUT = 25
+# AUTO_TRAINING = False
+START_DELAY = 3
 
 RECORD_LAPS = False
 HAS_TELEM = True
 EXTENDED_TELEM = True
 
 DEFAULT_TRACK = 'mountain_track'
-DEFAULT_RECORD_FORMAT = 'tub' #None # 'CSV' # None, 'ASL', 'CSV', 'tub'
+DEFAULT_RECORD_FORMAT = 'CSV' # None, 'ASL', 'CSV', 'tub'
 DEFAULT_IMAGE_FORMAT = 'PNG' # 'JPG', 'PNG', 'TGA'
 DEFAULT_IMAGE_DEPTH = 1 # 1, 3
-DEFAULT_DRIVE_MODE =  'manual' # 'auto', 'manual' 
+DEFAULT_DRIVE_MODE =  'auto_train' # 'auto', 'manual' 
 DEFAULT_HOST = "127.0.0.1" #
 # DEFAULT_HOST = "donkey-sim.roboticist.dev" # twitch server
 
@@ -82,7 +87,7 @@ def msg_builder(config_dict):
     return msg_string
 
 # 0 is default
-tracks = [
+TRACKS = [
     'generated_road', 
     'warehouse', 
     'sparkfun_avc', 
@@ -95,7 +100,7 @@ tracks = [
     'mountain_track'
     ]
 
-record_formats = [
+RECORD_FORMATS = [
     None,
     'None', # default
     'CSV', # capstone
@@ -103,27 +108,28 @@ record_formats = [
     'ASL', # Slam
 ]
 
-image_formats = [
+IMAGE_FORMATS = [
     'PNG', # default
     'JPG',
     'TGA'
 ]
 
-image_depths = [
+IMAGE_DEPTHS = [
     1, #default
     3, # RGB'
 ]
 
-drive_modes = [
+DRIVE_MODES = [
     'manual', # default
     'auto',
+    'auto_train',
     'telem_test',
 ]
 
 # telemetry columns
 # msg_type removed, lap added by me
 
-extended_cols = [
+EXTENDED_TELEMETRY_COLUMNS = [
         'steering_angle', 'throttle', 'speed', 'image', 'hit', 
         'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
         'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll', 
@@ -131,7 +137,7 @@ extended_cols = [
         'pos_z', 'vel_x', 'vel_y', 'vel_z', 'lap'
         ]
 
-standard_cols = [
+STANDARD_TELEMETRY_COLUMNS = [
         'steering_angle', 'throttle', 'speed', 'image', 'hit',
         'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
         'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll',

@@ -9,7 +9,7 @@ import os
 import time
 import logging
 
-import config
+from config import *
 
 from io import BytesIO
 from re import T
@@ -34,21 +34,18 @@ class SimpleClient(SDClient):
         self.extended_telem = conf['extended_telem']
         self.current_lap = 0
         self.lap_start = None
+        self.sim_start = time.time()
+        self.lap_elapsed = 0.0
         self.update_delay = 1.0
         self.last_update = time.time()
         self.cte = 0 
-        self.st_ctl = 0
-        self.th_ctl = 0
 
         self.frames_this_second = 0
         self.frame_count = 0
-
         self.fps_index = 0
         self.fps_list = [0,0,0,0,0,0,0,0,0,0]
-
         self.driving = True
         self.current_node = 0
-
         self.lap_nodes = set()
         self.all_nodes = None
         # self.x = 0
@@ -56,14 +53,12 @@ class SimpleClient(SDClient):
         # self.z = 0
         # self.node = 0
         self.pilot = None
-
         self.fresh_data = False
         self.recorder = None
         self.record_laps = conf['record_laps']
-
         self.refresh_sim = False
 
-        if self.drive_mode == 'auto':
+        if self.drive_mode in ('auto', 'auto_train'):
             self.driving = False
             self.current_image = None
             self.pilot = Autopilot(conf)
@@ -111,13 +106,19 @@ class SimpleClient(SDClient):
                 self.lap_recorder.record(self.current_lap, json_packet['timeStamp'])
 
         if json_packet['msg_type'] == "telemetry":
+            # print(json_packet['time'])
+            if self.lap_start:
+                self.lap_elapsed = json_packet['time'] - self.lap_start
+                if self.drive_mode == 'auto_train' and self.current_lap > 0 and self.lap_elapsed > AUTO_TIMEOUT:
+                    # print(self.lap_elapsed)
+                    self.reset_car()
 
             # track lap progress
             if not self.all_nodes:
                 self.all_nodes = set(range(json_packet['totalNodes']))
             self.lap_nodes.add(json_packet['activeNode'])
 
-            if self.drive_mode == "auto" and self.pilot:
+            if self.drive_mode in ('auto', 'auto_train') and self.pilot:
                 # don't try to start predicting without an image
                 if not self.current_image:
                     print('got first image')
@@ -125,7 +126,16 @@ class SimpleClient(SDClient):
                 self.current_image = Image.open(
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
+
+                if 'first_lap' in self.pilot.telemetry_columns:
+                    json_packet['first_lap'] = self.current_lap == 1
+                    
+                # lap_time = json_packet['time']- self.lap_start
+
                 # handle telemetry
+                # if self.auto_training and lap_time > AUTO_TIMEOUT:
+                    # self.reset_car()
+
                 # add telemetry from json. don't try to add dummy columns that don't exist
                 self.current_telem = [json_packet[x] for x in self.pilot.telemetry_columns if not x.startswith('activeNode_')]
                 # add activeNode dummy columns if necessary
@@ -149,15 +159,15 @@ class SimpleClient(SDClient):
 
     def send_config(self):
         # Racer
-        msg = config.racer_config()
+        msg = racer_config()
         self.send(msg)
         time.sleep(0.2)
         # Car
-        msg = config.car_config()
+        msg = car_config()
         self.send(msg)
         time.sleep(0.2)
         # Camera
-        msg = config.cam_config()
+        msg = cam_config()
         self.send(msg)
         time.sleep(0.2)
         print('config sent!')
@@ -177,7 +187,7 @@ class SimpleClient(SDClient):
 
     def auto_update(self):
         # get inferences from autopilot
-        if config.HAS_TELEM:
+        if HAS_TELEM:
             inputs = self.current_image, self.current_telem
         else:
             inputs = [self.current_image]
@@ -200,34 +210,34 @@ class SimpleClient(SDClient):
         return st*st_scale, (fw + rv)*th_scale
 
     def update(self):
-        steering = 0
-        throttle = 0
+        steering = 0.0
+        throttle = 0.0
         self.ctr.update()
         if not self.driving:
             if self.ctr.button('start_button'):
                 print('Driving started')
                 self.driving = True
+            elif self.drive_mode == 'auto_train':
+                self.driving = time.time() - self.sim_start > START_DELAY
+
         else:
             if self.ctr.button('select_button'):
                 print('Driving stopped')
                 self.driving = False
         if self.ctr.button('y_button'):
             self.reset_car()
-            # self.driving = False
-        if self.drive_mode == 'auto':
+        if self.drive_mode in ('auto', 'auto_train'):
             if not self.current_image:
                 print("Waiting for first image")
                 return 
-            if self.fresh_data:
+            if self.driving and self.fresh_data:
                 steering, throttle = self.auto_update()
                 self.fresh_data = False
         elif self.drive_mode in ('manual', 'telem_test'):
             steering, throttle = self.manual_update()
-        self.st_ctl = steering
-        self.th_ctl = throttle
 
-        if self.driving:
-            self.send_controls(steering, throttle)
+        # if self.driving:
+        self.send_controls(steering, throttle)
 
         # current_time = time.time()
         # if current_time - self.last_update >= self.update_delay:
@@ -277,16 +287,18 @@ def run_client(conf):
     
     # Drive car
     run_sim = True
+    refresh_sim = False
     while run_sim:
         try:
             client.update()
-            # if client.driving:
-                # client.send_controls(client.st_ctl, client.th_ctl)
             if client.aborted:
                 print("Client aborted, stopping driving.")
+                if conf['drive_mode'] == 'auto_train':
+                    refresh_sim = True
                 run_sim = False
             if client.refresh_sim:
                 print("Refreshing sim")
+                refresh_sim = True
                 run_sim = False
         except KeyboardInterrupt:
             run_sim = False
@@ -301,14 +313,14 @@ def run_client(conf):
     # Close down client
     print("waiting for msg loop to stop")
     client.stop()
-    return client.refresh_sim
+    return refresh_sim
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="donkeysim_client")
     parser.add_argument("--host", 
                         type=str, 
-                        default=config.DEFAULT_HOST, 
+                        default=DEFAULT_HOST, 
                         help="host to use for tcp",)
     parser.add_argument("--port", 
                         type=int, 
@@ -316,32 +328,32 @@ if __name__ == "__main__":
                         help="port to use for tcp",)
     parser.add_argument("--track", 
                         type=str, 
-                        default=config.DEFAULT_TRACK,
+                        default=DEFAULT_TRACK,
                         help="name of donkey sim environment", 
-                        choices=config.tracks,)
+                        choices=TRACKS,)
     parser.add_argument("--record_format", 
                         type=str, 
-                        default=config.DEFAULT_RECORD_FORMAT,
+                        default=DEFAULT_RECORD_FORMAT,
                         help="recording format", 
-                        choices=config.record_formats) 
+                        choices=RECORD_FORMATS) 
     parser.add_argument("--image_format", 
                         type=str, 
-                        default=config.DEFAULT_IMAGE_FORMAT, 
+                        default=DEFAULT_IMAGE_FORMAT, 
                         help="image format", 
-                        choices=config.image_formats[0]) 
+                        choices=IMAGE_FORMATS) 
     parser.add_argument("--image_channels", 
                         type=int, 
-                        default=config.DEFAULT_IMAGE_DEPTH,
+                        default=DEFAULT_IMAGE_DEPTH,
                         help="1 for greyscale, 3 for RGB", 
-                        choices=config.image_depths,) 
+                        choices=IMAGE_DEPTHS,) 
     parser.add_argument("--drive_mode", 
                         type=str, 
-                        default=config.DEFAULT_DRIVE_MODE, 
+                        default=DEFAULT_DRIVE_MODE, 
                         help="manual control or autopilot", 
-                        choices=config.drive_modes,) 
+                        choices=DRIVE_MODES,) 
     # parser.add_argument("--model_path", 
     #                     type=str, 
-    #                     default=config.model_path,
+    #                     default=model_path,
     #                     help="path to model for inferencing",) 
     parser.add_argument("--model_number",
                         type=int,
@@ -356,12 +368,13 @@ if __name__ == "__main__":
         "image_depth": args.image_channels,
         "drive_mode": args.drive_mode,
         "track": args.track,
-        "controller_type": config.ctr_type,
-        "controller_path": config.ctr_path,
-        "record_laps": config.RECORD_LAPS,
-        "extended_telem": config.EXTENDED_TELEM,
+        "controller_type": CONTROLLER_TYPE,
+        "controller_path": CONTROLLER_PATH,
+        "record_laps": RECORD_LAPS,
+        "extended_telem": EXTENDED_TELEM,
         "model_number": args.model_number,
-        "model_history": config.model_history_path,
+        "model_history": MODEL_HISTORY_PATH,
+        # "auto_training": AUTO_TRAINING
     }
     while True: 
         refresh = run_client(conf)
