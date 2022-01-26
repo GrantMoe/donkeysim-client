@@ -35,23 +35,10 @@ class SimpleClient(SDClient):
         self.current_lap = 0
         self.lap_start = None
         self.sim_start = time.time()
-        self.lap_elapsed = 0.0
-        self.update_delay = 1.0
-        self.last_update = time.time()
-        self.cte = 0 
-
-        self.frames_this_second = 0
-        self.frame_count = 0
-        self.fps_index = 0
-        self.fps_list = [0,0,0,0,0,0,0,0,0,0]
+        self.timer_start = time.time()
         self.driving = True
-        self.current_node = 0
         self.lap_nodes = set()
         self.all_nodes = None
-        # self.x = 0
-        # self.y = 0
-        # self.z = 0
-        # self.node = 0
         self.pilot = None
         self.fresh_data = False
         self.recorder = None
@@ -62,19 +49,12 @@ class SimpleClient(SDClient):
             self.driving = False
             self.current_image = None
             self.pilot = Autopilot(conf)
-            # time.sleep(0.5)
         self.ctr = Controller(ctr_type=conf['controller_type'], 
                                 path=conf['controller_path'])
-            # if self.drive_mode == 'telem_test':
-            #     self.update_delay = 1.0
-            #     self.prev_node = None
-            #     self.last_update = time.time()
-
         if self.record_format:
             self.recorder = SimRecorder(self)
         if self.record_laps:
             self.lap_recorder = LapRecorder(conf)
-
 
     def on_msg_recv(self, json_packet):
 
@@ -93,24 +73,27 @@ class SimpleClient(SDClient):
             # display time + resent progress if it was a full lap
             if len(self.all_nodes - self.lap_nodes) <= 10: # allow for skipped 
                 lap_time = json_packet['timeStamp'] - self.lap_start
-                print(f"Lap: {self.current_lap}: {round(lap_time, 2)}")
+                print(f"Lap {self.current_lap}: {round(lap_time, 2)}")
                 self.lap_nodes.clear()
             else: 
                 # display '-' for time if not a complete lap
-                print(f"Lap: {self.current_lap}: -")
+                print(f"Lap {self.current_lap}: -")
             # iterate lap
             self.lap_start = json_packet['timeStamp']
+            self.timer_start = time.time()
             self.current_lap += 1
             # record laps if tracking thing separately
             if self.record_laps:
                 self.lap_recorder.record(self.current_lap, json_packet['timeStamp'])
 
         if json_packet['msg_type'] == "telemetry":
-            # print(json_packet['time'])
+
+            # check for crash/timeout if auto-training
             if self.lap_start:
                 self.lap_elapsed = json_packet['time'] - self.lap_start
-                if self.drive_mode == 'auto_train' and self.current_lap > 0 and self.lap_elapsed > AUTO_TIMEOUT:
-                    # print(self.lap_elapsed)
+                lap_elapsed = time.time() - self.timer_start
+                if self.drive_mode == 'auto_train' and lap_elapsed > AUTO_TIMEOUT:
+                    print('Auto-training lap timeout')
                     self.reset_car()
 
             # track lap progress
@@ -119,7 +102,7 @@ class SimpleClient(SDClient):
             self.lap_nodes.add(json_packet['activeNode'])
 
             if self.drive_mode in ('auto', 'auto_train') and self.pilot:
-                # don't try to start predicting without an image
+                # don't try to start predicting without input
                 if not self.current_image:
                     print('got first image')
                 # decode image
@@ -127,24 +110,20 @@ class SimpleClient(SDClient):
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
 
-                if 'first_lap' in self.pilot.telemetry_columns:
-                    json_packet['first_lap'] = self.current_lap == 1
-                    
-                # lap_time = json_packet['time']- self.lap_start
-
-                # handle telemetry
-                # if self.auto_training and lap_time > AUTO_TIMEOUT:
-                    # self.reset_car()
-
                 # add telemetry from json. don't try to add dummy columns that don't exist
-                self.current_telem = [json_packet[x] for x in self.pilot.telemetry_columns if not x.startswith('activeNode_')]
+                self.current_telem = [json_packet[x] for x in self.pilot.telemetry_columns if not (x.startswith('activeNode_') or (x == 'first_lap'))]
+                
+                # mark first lap as such
+                if 'first_lap' in self.pilot.telemetry_columns:
+                    self.current_telem.append(self.current_lap == 1)
+                
                 # add activeNode dummy columns if necessary
                 if 'activeNode_0' in self.pilot.telemetry_columns:
                     node_dummies = [0] * 250
                     node_dummies[json_packet['activeNode']] = 1
                     self.current_telem.extend(node_dummies)
 
-            # Don't record if you haven't started yet.
+            # Start recording when you first start moving
             if self.recorder and json_packet['throttle'] > 0.0:
                 self.start_recording = True
 
@@ -154,6 +133,7 @@ class SimpleClient(SDClient):
                 json_packet['lap'] = self.current_lap # for sake o tub experiment
                 self.recorder.record(json_packet)
 
+            # indicate there is new data on which to make a prediction
             self.fresh_data = True    
 
 
@@ -174,7 +154,6 @@ class SimpleClient(SDClient):
 
 
     def send_controls(self, steering, throttle):
-        # print(f'{steering}, {throttle}')
         p = { "msg_type" : "control",
                 "steering" : steering.__str__(),
                 "throttle" : throttle.__str__(),
@@ -219,7 +198,8 @@ class SimpleClient(SDClient):
                 self.driving = True
             elif self.drive_mode == 'auto_train':
                 self.driving = time.time() - self.sim_start > START_DELAY
-
+                if self.driving:
+                    print('auto-training started')
         else:
             if self.ctr.button('select_button'):
                 print('Driving stopped')
@@ -235,21 +215,8 @@ class SimpleClient(SDClient):
                 self.fresh_data = False
         elif self.drive_mode in ('manual', 'telem_test'):
             steering, throttle = self.manual_update()
-
-        # if self.driving:
         self.send_controls(steering, throttle)
 
-        # current_time = time.time()
-        # if current_time - self.last_update >= self.update_delay:
-        #     os.system('clear')
-        #     print('===========================')
-        #     print(f'str: {steering:.3f}')
-        #     print(f'thr: {throttle:.3f}')
-        #     print(f'lap: {self.current_lap}')
-        #     print('===========================')
-        #     self.last_update = current_time
-        # if self.fresh_data:
-            # self.send_controls(steering, throttle)
         
     def reset_car(self):
         self.refresh_sim = True
@@ -313,6 +280,7 @@ def run_client(conf):
     # Close down client
     print("waiting for msg loop to stop")
     client.stop()
+    # time.sleep(2)
     return refresh_sim
 
 
