@@ -210,12 +210,13 @@ class SimpleClient(SDClient):
             if not self.current_image:
                 print("Waiting for first image")
                 return 
-            if self.driving and self.fresh_data:
+            if self.fresh_data:
                 steering, throttle = self.auto_update()
                 self.fresh_data = False
         elif self.drive_mode in ('manual', 'telem_test'):
             steering, throttle = self.manual_update()
-        self.send_controls(steering, throttle)
+        if self.driving:
+            self.send_controls(steering, throttle)
 
         
     def reset_car(self):
@@ -250,8 +251,8 @@ def run_client(conf):
     # Configure Car
     client.send_config()
 
-    print('ready to drive')
-    
+    # print('ready to drive')
+
     # Drive car
     run_sim = True
     refresh_sim = False
