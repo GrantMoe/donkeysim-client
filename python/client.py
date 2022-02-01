@@ -110,13 +110,35 @@ class SimpleClient(SDClient):
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
 
+                lap_telem = [
+                    'first_lap', 
+                    'first_lap_speed', 
+                    'first_lap_yaw',
+                    'later_lap_speed',
+                    'later_lap_yaw']
+
                 # add telemetry from json. don't try to add dummy columns that don't exist
-                self.current_telem = [json_packet[x] for x in self.pilot.telemetry_columns if not (x.startswith('activeNode_') or (x == 'first_lap'))]
-                
-                # mark first lap as such
-                if 'first_lap' in self.pilot.telemetry_columns:
-                    self.current_telem.append(self.current_lap == 1)
-                
+                self.current_telem = [json_packet[x] for x in self.pilot.telemetry_columns if not (x.startswith('activeNode_') or (x in lap_telem))]
+
+                first_lap = int(self.current_lap == 1)
+                later_lap = int(not first_lap)
+
+                # # mark first lap as such
+                # if 'first_lap' in self.pilot.telemetry_columns:
+                #     self.current_telem.append(self.current_lap == 1)
+
+                # engineered features
+                for lt in [tc for tc in self.pilot.telemetry_columns if tc in lap_telem]:
+                    if lt == 'first_lap':
+                        self.current_telem.appned(first_lap)
+                    else:
+                        lt_split = lt.split('_')
+                        if lt_split[0] == 'first':
+                            self.current_telem.append(first_lap * json_packet[lt_split[-1]])
+                        if lt_split[0] == 'later':
+                            self.current_telem.append(later_lap * json_packet[lt_split[-1]])
+
+
                 # add activeNode dummy columns if necessary
                 if 'activeNode_0' in self.pilot.telemetry_columns:
                     node_dummies = [0] * 250
