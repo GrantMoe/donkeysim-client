@@ -21,7 +21,9 @@ class Autopilot:
         return img_array / 255
 
     def infer(self, inputs):
-        img = self.convert_image(inputs[0])
+        img = img_to_array(inputs[0])
+        # img = self.convert_image(inputs[0])
+
         imu = np.array([inputs[1]])
         imu_in = self.scaler.transform(imu)
         img_in = img.reshape((1,)+img.shape)
