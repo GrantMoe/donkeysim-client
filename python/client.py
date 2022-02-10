@@ -45,6 +45,8 @@ class SimpleClient(SDClient):
         self.record_laps = conf['record_laps']
         self.refresh_sim = False
 
+        self.printed_telem = False
+
         if self.drive_mode in ('auto', 'auto_train'):
             self.driving = False
             self.current_image = None
@@ -115,7 +117,16 @@ class SimpleClient(SDClient):
                     'first_lap_speed', 
                     'first_lap_yaw',
                     'later_lap_speed',
-                    'later_lap_yaw']
+                    'later_lap_yaw',
+                    'lap_type_first',
+                    'lap_type_later'
+                    ]
+
+                if not self.printed_telem:
+                    print([x for x in self.pilot.telemetry_columns if not (x.startswith('activeNode_') or (x in lap_telem))])
+                    if len([tc for tc in self.pilot.telemetry_columns if tc in lap_telem]) > 0:
+                        print([tc for tc in self.pilot.telemetry_columns if tc in lap_telem])
+                    self.printed_telem = True
 
                 # add telemetry from json. don't try to add dummy columns that don't exist
                 self.current_telem = [json_packet[x] for x in self.pilot.telemetry_columns if not (x.startswith('activeNode_') or (x in lap_telem))]
@@ -129,14 +140,17 @@ class SimpleClient(SDClient):
 
                 # engineered features
                 for lt in [tc for tc in self.pilot.telemetry_columns if tc in lap_telem]:
-                    if lt == 'first_lap':
-                        self.current_telem.appned(first_lap)
+                    if lt in ['first_lap', 'lap_type_first']:
+                        self.current_telem.append(first_lap)
+                    elif lt == 'lap_type_later':
+                        self.current_telem.append(later_lap)
                     else:
                         lt_split = lt.split('_')
                         if lt_split[0] == 'first':
                             self.current_telem.append(first_lap * json_packet[lt_split[-1]])
                         if lt_split[0] == 'later':
                             self.current_telem.append(later_lap * json_packet[lt_split[-1]])
+                        
 
 
                 # add activeNode dummy columns if necessary
