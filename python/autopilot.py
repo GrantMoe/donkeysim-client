@@ -11,6 +11,7 @@ from config import MODEL_DIRECTORY, SCALER_DIRECTORY
 class Autopilot:
 
     def __init__(self, conf):
+        self.model_number = conf['model_number']
         data = model_paths(conf['model_history'], conf['model_number'])
         self.model = load_model(f"{MODEL_DIRECTORY}/{data['model_file']}")
         self.scaler = pickle.load(open(f"{SCALER_DIRECTORY}/{data['scaler_file']}", 'rb'))
@@ -21,9 +22,10 @@ class Autopilot:
         return img_array / 255
 
     def infer(self, inputs):
-        img = img_to_array(inputs[0])
-        # img = self.convert_image(inputs[0])
-
+        if self.model_number < 309:
+            img = self.convert_image(inputs[0])
+        else:
+            img = img_to_array(inputs[0])
         imu = np.array([inputs[1]])
         imu_in = self.scaler.transform(imu)
         img_in = img.reshape((1,)+img.shape)

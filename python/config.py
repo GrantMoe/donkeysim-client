@@ -14,10 +14,10 @@ HAS_TELEM = True
 EXTENDED_TELEM = True
 
 DEFAULT_TRACK = 'mountain_track'
-DEFAULT_RECORD_FORMAT = 'CSV' # None, 'ASL', 'CSV', 'tub'
+DEFAULT_RECORD_FORMAT = None #'CSV' # None, 'ASL', 'CSV', 'tub'
 DEFAULT_IMAGE_FORMAT = 'PNG' # 'JPG', 'PNG', 'TGA'
 DEFAULT_IMAGE_DEPTH = 1 # 1: greyscale, 3: rgb
-DEFAULT_DRIVE_MODE =  'auto_train' # 'auto', 'auto_train', 'manual' 
+DEFAULT_DRIVE_MODE =  'auto' #'auto_train' # 'auto', 'auto_train', 'manual' 
 DEFAULT_HOST = "127.0.0.1" # localhost 
 # DEFAULT_HOST = "donkey-sim.roboticist.dev" # twitch server
 
