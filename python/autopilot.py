@@ -5,23 +5,46 @@ import numpy as np
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 import pickle
+from collections import deque
 
-from config import MODEL_DIRECTORY, SCALER_DIRECTORY
+from config import MODEL_DIRECTORY, MODEL_TYPE, SCALER_DIRECTORY
 
 class Autopilot:
 
     def __init__(self, conf):
         self.model_number = conf['model_number']
         data = model_paths(conf['model_history'], conf['model_number'])
-        self.model = load_model(f"{MODEL_DIRECTORY}/{data['model_file']}")
+        self.model = load_model(f"{MODEL_DIRECTORY}/{data['model_file']}", compile=False)
+        # Playing with fire here a bit
+        # print(self.model.get_layer(index=1).name)
+        # self.convert_images = self.model.get_layer(index=1).name != 'rescaling'
         self.scaler = pickle.load(open(f"{SCALER_DIRECTORY}/{data['scaler_file']}", 'rb'))
         self.telemetry_columns = data['telemetry_columns']
+        self.model_type = conf['model_type']
+        if self.model_type == 'lstm':
+            self.img_queue = deque()
+            self.tel_queue = deque()
+            self.sequence_length = conf['sequence_length']
 
     def convert_image(self, img):
         img_array = img_to_array(img)
         return img_array / 255
 
+    def process_lstm(self, img, tel):
+        while len(self.img_queue) < self.sequence_length:
+            self.img_queue.append(img)
+            self.tel_queue.append(tel)
+        self.img_queue.popleft()
+        self.tel_queue.popleft()
+        self.img_queue.append(img)
+        self.tel_queue.append(tel)
+        return self.img_queue, self.tel_queue
+
     def infer(self, inputs):
+        # for i in range(len(inputs[1])):
+        #     if type(inputs[1][i]) is int:
+        #         inputs[1][i] = inputs[1][i].astype(uint8)
+            # print(f'type(inputs[1][{i}]) = {inputs[1][i].dtype}')
         if self.model_number < 309:
             img = self.convert_image(inputs[0])
         else:
@@ -29,6 +52,8 @@ class Autopilot:
         imu = np.array([inputs[1]])
         imu_in = self.scaler.transform(imu)
         img_in = img.reshape((1,)+img.shape)
+        if self.model_type == 'lstm':
+            img_in, imu_in = self.process_lstm(img_in, imu_in)
         pred = self.model([img_in, imu_in], training=False)
         if isinstance(pred, list):
             st_pred = pred[0].numpy()[0][0]

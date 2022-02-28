@@ -3,7 +3,9 @@ CONTROLLER_TYPE = 'xbox'
 CONTROLLER_PATH = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
 MODEL_HISTORY_PATH = '/home/grant/projects/vrl/models/model_history.csv'
 MODEL_DIRECTORY = '/home/grant/projects/vrl/models'
-SCALER_DIRECTORY = '/home/grant/projects/vrl/scalers' 
+SCALER_DIRECTORY = '/home/grant/projects/vrl/scalers'
+MODEL_TYPE = 'lstm' # vimu
+SEQUENCE_LENGTH = 3 
 
 AUTO_TIMEOUT = 23 # FAST
 # AUTO_TRAINING = False
@@ -11,13 +13,13 @@ START_DELAY = 3 # don't know
 
 RECORD_LAPS = False
 HAS_TELEM = True
-EXTENDED_TELEM = True
+DEFAULT_TELEM = 'donkey_extended' 
 
 DEFAULT_TRACK = 'mountain_track'
-DEFAULT_RECORD_FORMAT = None #'CSV' # None, 'ASL', 'CSV', 'tub'
+DEFAULT_RECORD_FORMAT =  None # None, 'ASL', 'CSV', 'tub'
 DEFAULT_IMAGE_FORMAT = 'PNG' # 'JPG', 'PNG', 'TGA'
 DEFAULT_IMAGE_DEPTH = 1 # 1: greyscale, 3: rgb
-DEFAULT_DRIVE_MODE =  'auto' #'auto_train' # 'auto', 'auto_train', 'manual' 
+DEFAULT_DRIVE_MODE =  'auto' # 'auto', 'auto_train', 'manual' 
 DEFAULT_HOST = "127.0.0.1" # localhost 
 # DEFAULT_HOST = "donkey-sim.roboticist.dev" # twitch server
 
@@ -122,20 +124,31 @@ DRIVE_MODES = [
     'telem_test',
 ]
 
+TELEM_TYPES = [
+    'donkey_basic',
+    'donkey_extended',
+    'gym'
+]
+
 # telemetry columns
 # msg_type removed, lap added by me
 
-EXTENDED_TELEMETRY_COLUMNS = [
+TELEMETRY_COLUMNS = {
+    'donkey_basic': [
+        'steering_angle', 'throttle', 'speed', 'image', 'hit',
+        'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
+        'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll',
+        'activeNode', 'totalNodes', 'lap'
+        ],
+    'donkey_extended': [
         'steering_angle', 'throttle', 'speed', 'image', 'hit', 
         'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
         'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll', 
         'cte', 'activeNode', 'totalNodes', 'pos_x', 'pos_y', 
         'pos_z', 'vel_x', 'vel_y', 'vel_z', 'lap'
+        ],
+    'gym': [
+        'pos', 'cte', 'speed', 'hit', 'gyro', 'accel', 'vel', 
+        'lidar', 'car', 'last_lap_time', 'image', 'timestep'
         ]
-
-STANDARD_TELEMETRY_COLUMNS = [
-        'steering_angle', 'throttle', 'speed', 'image', 'hit',
-        'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
-        'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll',
-        'activeNode', 'totalNodes', 'lap'
-        ]
+}

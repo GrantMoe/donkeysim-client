@@ -31,7 +31,7 @@ class SimpleClient(SDClient):
         self.image_depth = conf['image_depth']
         self.image_format = conf['image_format']
         self.drive_mode = conf['drive_mode']
-        self.extended_telem = conf['extended_telem']
+        self.telem_type = conf['telem_type']
         self.current_lap = 0
         self.lap_start = None
         self.sim_start = time.time()
@@ -240,6 +240,7 @@ class SimpleClient(SDClient):
             if self.ctr.button('select_button'):
                 print('Driving stopped')
                 self.driving = False
+                self.send_controls(0.0, 0.0)
         if self.ctr.button('y_button'):
             self.reset_car()
         if self.drive_mode in ('auto', 'auto_train'):
@@ -356,14 +357,16 @@ if __name__ == "__main__":
                         default=DEFAULT_DRIVE_MODE, 
                         help="manual control or autopilot", 
                         choices=DRIVE_MODES,) 
-    # parser.add_argument("--model_path", 
-    #                     type=str, 
-    #                     default=model_path,
-    #                     help="path to model for inferencing",) 
     parser.add_argument("--model_number",
                         type=int,
                         default=None,
                         help='model_history index for model and scaler paths')
+    parser.add_argument("--telem_type",
+                        type=str,
+                        default=DEFAULT_TELEM,
+                        help='type of telemetry provided by sim',
+                        choices=TELEM_TYPES)
+
     args = parser.parse_args()
     conf = {
         "host": args.host,
@@ -376,9 +379,11 @@ if __name__ == "__main__":
         "controller_type": CONTROLLER_TYPE,
         "controller_path": CONTROLLER_PATH,
         "record_laps": RECORD_LAPS,
-        "extended_telem": EXTENDED_TELEM,
+        "telem_type": DEFAULT_TELEM,
         "model_number": args.model_number,
         "model_history": MODEL_HISTORY_PATH,
+        "model_type":  MODEL_TYPE,
+        "sequence_length": SEQUENCE_LENGTH,
         # "auto_training": AUTO_TRAINING
     }
     while True: 
