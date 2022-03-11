@@ -8,7 +8,19 @@ import base64
 from io import BytesIO
 from PIL import Image
 
-from config import EXTENDED_TELEMETRY_COLUMNS, STANDARD_TELEMETRY_COLUMNS
+from config import TELEMETRY_COLUMNS
+
+
+class GymRecorder:
+
+    def __init__(self, conf):
+        telem_type = 'gym'
+        image_format = 'png'
+        image_depth = conf['cam_resolution'][2]
+        self.recorder = CSVRecorder(image_format, image_depth, telem_type)
+
+    def record(self, json_packet):
+        self.recorder.record(json_packet)
 
 
 class SimRecorder:
@@ -17,18 +29,18 @@ class SimRecorder:
         record_format = conf.record_format 
         image_format = conf.image_format
         image_depth = conf.image_depth
-        extended_telem = conf.extended_telem
+        telem_type = conf.telem_type
         if record_format == 'tub':
             self.recorder = TubRecorder(image_format, image_depth)
         elif record_format == 'CSV':
-            self.recorder = CSVRecorder(image_format, image_depth, extended_telem)
+            self.recorder = CSVRecorder(image_format, image_depth, telem_type)
         elif record_format == 'ASL':
             self.recorder = ASLRecorder(image_format, image_depth)
         else:
             self.recorder = None
+
     def record(self, json_packet):
         self.recorder.record(json_packet)
-
 
 class ASLRecorder:
 
@@ -152,17 +164,15 @@ class LapRecorder:
 
 class CSVRecorder:
 
-    def __init__(self, image_format, image_depth, extended_telem):
+    def __init__(self, image_format, image_depth, telem_type):
         time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
+        self.telem_type = telem_type
         self.dir = f'{os.getcwd()}/../data/{time_str}'
         os.makedirs(self.dir, exist_ok=True)
         self.img_dir = f'{self.dir}/images'
         os.makedirs(self.img_dir, exist_ok=True)
         self.csv_file_path = f'{self.dir}/data.csv'
-        if extended_telem:
-            cols = EXTENDED_TELEMETRY_COLUMNS
-        else:
-            cols = STANDARD_TELEMETRY_COLUMNS
+        cols = TELEMETRY_COLUMNS[telem_type]
         with open(self.csv_file_path, 'w', newline='') as csv_outfile:
             row_writer = csv.writer(csv_outfile)
             row_writer.writerow(cols)
@@ -171,12 +181,12 @@ class CSVRecorder:
         print(self.csv_file_path)
 
     def record(self, json_packet):
-        image = Image.open(
+        if self.telem_type != 'gym': # 'gym' stores image in csv as np array
+            image = Image.open(
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
-        image.save(f"{self.img_dir}/{json_packet['time']}.{self.image_format}")
-        json_packet['image'] = f"{json_packet['time']}.{self.image_format}"
-        # json_packet['lap'] = self.current_lap
+            image.save(f"{self.img_dir}/{json_packet['time']}.{self.image_format.lower()}")
+            json_packet['image'] = f"{json_packet['time']}.{self.image_format.lower()}"
         with open(self.csv_file_path, 'a', newline='') as csv_outfile:
             row_writer = csv.writer(csv_outfile)
             row_writer.writerow(value for value in json_packet.values())
