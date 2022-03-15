@@ -34,6 +34,7 @@ class SimpleClient(SDClient):
         self.telem_type = conf['telem_type']
         self.current_lap = 0
         self.lap_start = None
+        self.lap_sum = 0
         self.sim_start = time.time()
         self.timer_start = time.time()
         self.driving = True
@@ -75,7 +76,9 @@ class SimpleClient(SDClient):
             # display time + resent progress if it was a full lap
             if len(self.all_nodes - self.lap_nodes) <= 10: # allow for skipped 
                 lap_time = json_packet['timeStamp'] - self.lap_start
-                print(f"Lap {self.current_lap}: {round(lap_time, 2)}")
+                self.lap_sum += lap_time
+                lap_avg = self.lap_sum / self.current_lap 
+                print(f"Lap {self.current_lap}: {round(lap_time, 2)}    avg : {round(lap_avg, 2)}")
                 self.lap_nodes.clear()
             else: 
                 # display '-' for time if not a complete lap
@@ -109,8 +112,7 @@ class SimpleClient(SDClient):
                     print('got first image')
                 # decode image
                 self.current_image = Image.open(
-                    BytesIO(base64.b64decode(json_packet['image']))
-                    ).getchannel(self.image_depth)
+                    BytesIO(base64.b64decode(json_packet['image']))).getchannel(self.image_depth)
 
                 lap_telem = [
                     'first_lap', 
@@ -347,10 +349,10 @@ if __name__ == "__main__":
                         default=DEFAULT_IMAGE_FORMAT, 
                         help="image format", 
                         choices=IMAGE_FORMATS) 
-    parser.add_argument("--image_channels", 
+    parser.add_argument("--image_depth", 
                         type=int, 
                         default=DEFAULT_IMAGE_DEPTH,
-                        help="1 for greyscale, 3 for RGB", 
+                        help="image channels", 
                         choices=IMAGE_DEPTHS,) 
     parser.add_argument("--drive_mode", 
                         type=str, 
@@ -373,7 +375,7 @@ if __name__ == "__main__":
         "port": args.port,
         "record_format": args.record_format,
         "image_format": args.image_format,
-        "image_depth": args.image_channels,
+        "image_depth": args.image_depth,
         "drive_mode": args.drive_mode,
         "track": args.track,
         "controller_type": CONTROLLER_TYPE,
