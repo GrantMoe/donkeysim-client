@@ -26,7 +26,7 @@ class Autopilot:
             # using maxlen will take care of 'popping'
             self.img_seq = deque(maxlen=self.sequence_length)
             self.tel_seq = deque(maxlen=self.sequence_length)
-
+        self.image_depth = conf['image_depth']
         print('autopilot initiated')
 
     # converts from 0-255 uint to expected 0.0-1.0 float
@@ -63,7 +63,10 @@ class Autopilot:
             if self.model_number < 309:
                 img = self.norm_image(inputs[0])
             else:
-                img = img_to_array(inputs[0], dtype='uint8')
+                img = img_to_array(inputs[0])
+            if self.model_number > 981:
+                img = img[40:120, 0:160]
+
             imu = np.array([inputs[1]])
             imu_in = self.scaler.transform(imu)
             img_in = img.reshape((1,)+img.shape)

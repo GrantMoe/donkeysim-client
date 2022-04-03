@@ -4,7 +4,7 @@ CONTROLLER_PATH = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383
 MODEL_HISTORY_PATH = '/home/grant/projects/vrl/models/model_history.csv'
 MODEL_DIRECTORY = '/home/grant/projects/vrl/models'
 SCALER_DIRECTORY = '/home/grant/projects/vrl/scalers'
-MODEL_TYPE = 'lstm' # vimu
+MODEL_TYPE = 'vimu' # 'lstm'
 SEQUENCE_LENGTH = 3 
 
 AUTO_TIMEOUT = 23 # FAST
@@ -13,13 +13,14 @@ START_DELAY = 3 # don't know
 
 RECORD_LAPS = False
 HAS_TELEM = True
+USE_BRAKES = True
 DEFAULT_TELEM = 'donkey_extended' 
 
-DEFAULT_TRACK = 'mountain_track'
-DEFAULT_RECORD_FORMAT =  None # None, 'ASL', 'CSV', 'tub'
+DEFAULT_TRACK = 'mountain_track' #  'generated_road', 'warehouse', 'sparkfun_avc', 'generated_track', 'roboracingleague_1', 'waveshare', 'mini_monaco', 'warren', 'circuit_launch', 'mountain_track'
+DEFAULT_RECORD_FORMAT =  'CSV' # None, 'ASL', 'CSV', 'tub'
 DEFAULT_IMAGE_FORMAT = 'PNG' # 'JPG', 'PNG', 'TGA'
-DEFAULT_IMAGE_DEPTH = 1 # 1: greyscale, 3: rgb
-DEFAULT_DRIVE_MODE =  'auto' # 'auto', 'auto_train', 'manual' 
+DEFAULT_IMAGE_DEPTH = 1 # 1:'grayscale', 3:'rgb'
+DEFAULT_DRIVE_MODE =  'manual' # 'auto', 'auto_train', 'manual' 
 DEFAULT_HOST = "127.0.0.1" # localhost 
 # DEFAULT_HOST = "donkey-sim.roboticist.dev" # twitch server
 
@@ -60,8 +61,8 @@ cam_conf = {
     'fov' : 0, 
     'fish_eye_x' : 0.0, 
     'fish_eye_y' : 0.0, 
-    # 'img_w' : 64, 
-    # 'img_h' : 64, 
+    'img_w' : 160, # 1280, # 64, 
+    'img_h' : 120, # 720, # 64, 
     'img_d' : 3, 
     'img_enc' : 'PNG', 
     'offset_x' : 0.0, 
@@ -137,18 +138,18 @@ TELEMETRY_COLUMNS = {
     'donkey_basic': [
         'steering_angle', 'throttle', 'speed', 'image', 'hit',
         'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
-        'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll',
+        'gyro_y', 'gyro_z', 'pitch', 'yaw', 'roll',
         'activeNode', 'totalNodes', 'lap'
         ],
     'donkey_extended': [
-        'steering_angle', 'throttle', 'speed', 'image', 'hit', 
+        'steering', 'throttle', 'speed', 'image', 'hit', 
         'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
-        'gyro_y', 'gyro_z', 'gyro_w', 'pitch', 'yaw', 'roll', 
+        'gyro_y', 'gyro_z', 'pitch', 'yaw', 'roll', 
         'cte', 'activeNode', 'totalNodes', 'pos_x', 'pos_y', 
         'pos_z', 'vel_x', 'vel_y', 'vel_z', 'lap'
         ],
     'gym': [
-        'pos', 'cte', 'speed', 'hit', 'gyro', 'accel', 'vel', 
-        'lidar', 'car', 'last_lap_time', 'image', 'timestep'
+        'pos', 'cte', 'speed', 'hit', 'gyro', 'accel', 'vel', 'lidar', 
+        'car', 'last_lap_time', 'lap_count', 'timestep', 'time'
         ]
 }

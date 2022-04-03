@@ -7,12 +7,21 @@ notes: This tests controller input and image/telemetry recording.
 """
 import argparse
 import uuid
+import base64
+import time
+
+from io import BytesIO
+from re import T
+from PIL import Image
+
+
 
 import gym
 
 import gym_donkeycar
 
 from controller import Controller
+from sim_recorder import GymRecorder, SimRecorder
 
 
 def test_track(env_name, conf):
@@ -21,7 +30,7 @@ def test_track(env_name, conf):
     env = gym.make(env_name, conf=conf)
 
     # make sure you have no track loaded
-    exit_scene(env)
+    # exit_scene(env)
 
     simulate(env, conf=conf)
 
@@ -35,13 +44,17 @@ def simulate(env, conf):
     ctr = Controller(ctr_type=conf['controller_type'], 
                             path=conf['controller_path'])
 
+    rec = GymRecorder(conf)
+
     # Reset the environment
     obv = env.reset()
 
     lap_time = 0.0
     lap_count = 0
+    timestep = 0
+    # time = time.time()
+    
 
-    # t = 0
     while True:
         try:
             # get action
@@ -63,26 +76,24 @@ def simulate(env, conf):
             # execute the action
             obv, reward, done, info = env.step(action)
 
-            # t = t + 1
-            # if t % 30 == 0:
-            #     print(
-            #         "TIMESTEP",
-            #         t,
-            #         "/ ACTION",
-            #         action,
-            #         "/ REWARD",
-            #         info,
-            #             )
+            # add image (numpy array), time
+            info['image'] = obv
+            info['timestep'] = timestep
+            info['time'] = time.time()
+            timestep += 1
+
+            # record telemetry/image
+            rec.record(info)
+
+            # lap counter because why not.
+            # the info debugger already displays lap time
             if info["last_lap_time"] != lap_time:
                 lap_count += 1
                 lap_time = info["last_lap_time"]
-                print(f"Lap {lap_count}: {round(lap_time, 3)}" )
+                print(f"Lap {lap_count}" )
 
-        # if done:
-            # print("done w test.", info)
-            # break
         except KeyboardInterrupt:
-            print("done w test.", info)
+            print("done w test.") #, info)
             break
 
 def exit_scene(env):
@@ -135,7 +146,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-
     conf = {
         "exe_path": args.sim,
         "host": args.host,
@@ -146,9 +156,9 @@ if __name__ == "__main__":
         "font_size": 50,
         "start_delay": 1,
         "max_cte": 100,
-        "cam_resolution": (1280, 720, 3),
         "controller_type": "xbox",
         "controller_path": "/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick",
+        "cam_config":{"img_w": 1280, "img_h": 720, "img_d": 3}
         # "lidar_config": {
         #     "degPerSweepInc": 2.0,
         #     "degAngDown": 0.0,

@@ -30,10 +30,12 @@ class SimRecorder:
         image_format = conf.image_format
         image_depth = conf.image_depth
         telem_type = conf.telem_type
+        self.use_brakes = conf.use_brakes
         if record_format == 'tub':
             self.recorder = TubRecorder(image_format, image_depth)
         elif record_format == 'CSV':
-            self.recorder = CSVRecorder(image_format, image_depth, telem_type)
+            # self.recorder = CSVRecorder(image_format, image_depth, telem_type)
+            self.recorder = CSVRecorder(conf)
         elif record_format == 'ASL':
             self.recorder = ASLRecorder(image_format, image_depth)
         else:
@@ -164,20 +166,23 @@ class LapRecorder:
 
 class CSVRecorder:
 
-    def __init__(self, image_format, image_depth, telem_type):
+    # def __init__(self, image_format, image_depth, telem_type):
+    def __init__(self, conf):
         time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
-        self.telem_type = telem_type
+        self.telem_type = conf.telem_type
         self.dir = f'{os.getcwd()}/../data/{time_str}'
         os.makedirs(self.dir, exist_ok=True)
         self.img_dir = f'{self.dir}/images'
         os.makedirs(self.img_dir, exist_ok=True)
         self.csv_file_path = f'{self.dir}/data.csv'
-        cols = TELEMETRY_COLUMNS[telem_type]
+        cols = TELEMETRY_COLUMNS[conf.telem_type]
+        if conf.use_brakes:
+            cols.append('brake')
         with open(self.csv_file_path, 'w', newline='') as csv_outfile:
             row_writer = csv.writer(csv_outfile)
             row_writer.writerow(cols)
-        self.image_format = image_format
-        self.image_depth = image_depth
+        self.image_format = conf.image_format
+        self.image_depth = conf.image_depth
         print(self.csv_file_path)
 
     def record(self, json_packet):
@@ -186,7 +191,12 @@ class CSVRecorder:
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)
             image.save(f"{self.img_dir}/{json_packet['time']}.{self.image_format.lower()}")
-            json_packet['image'] = f"{json_packet['time']}.{self.image_format.lower()}"
+            json_packet['image'] = f"{json_packet['time']}.{self.image_format.lower()}" 
+        else:
+            image = Image.fromarray(json_packet['image'])
+            image.save(f"{self.img_dir}/{json_packet['timestep']}.{self.image_format.lower()}")
+            del json_packet['image']
+            # json_packet['image'] = f"{json_packet['timestep']}.{self.image_format.lower()}" 
         with open(self.csv_file_path, 'a', newline='') as csv_outfile:
             row_writer = csv.writer(csv_outfile)
             row_writer.writerow(value for value in json_packet.values())

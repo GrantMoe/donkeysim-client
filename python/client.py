@@ -35,6 +35,7 @@ class SimpleClient(SDClient):
         self.current_lap = 0
         self.lap_start = None
         self.lap_sum = 0
+        self.later_lap_sum = 0
         self.sim_start = time.time()
         self.timer_start = time.time()
         self.driving = True
@@ -45,11 +46,16 @@ class SimpleClient(SDClient):
         self.recorder = None
         self.record_laps = conf['record_laps']
         self.refresh_sim = False
+        self.previous_node = 0
+        self.current_node = 0
+        self.max_node = None
+        self.use_brakes = conf['use_brakes']
+        self.brake_telem = None
 
         self.printed_telem = False
 
         if self.drive_mode in ('auto', 'auto_train'):
-            self.driving = False
+            # self.driving = False
             self.current_image = None
             self.pilot = Autopilot(conf)
         self.ctr = Controller(ctr_type=conf['controller_type'], 
@@ -62,7 +68,7 @@ class SimpleClient(SDClient):
     def on_msg_recv(self, json_packet):
 
         # telemetry will flood the output, starting line is redundant with below checks
-        if json_packet['msg_type'] not in ["telemetry", "collision_with_starting_line"]:
+        if json_packet['msg_type'] not in ["telemetry"]: #, "collision_with_starting_line"]:
             print("got:", json_packet)
 
         if json_packet['msg_type'] == "need_car_config":
@@ -73,12 +79,19 @@ class SimpleClient(SDClient):
             self.car_loaded = True        
 
         if json_packet['msg_type'] == "collision_with_starting_line":
+            print('starting line!')
             # display time + resent progress if it was a full lap
             if len(self.all_nodes - self.lap_nodes) <= 10: # allow for skipped 
                 lap_time = json_packet['timeStamp'] - self.lap_start
                 self.lap_sum += lap_time
-                lap_avg = self.lap_sum / self.current_lap 
-                print(f"Lap {self.current_lap}: {round(lap_time, 2)}    avg : {round(lap_avg, 2)}")
+                if self.current_lap > 1:
+                    self.later_lap_sum += lap_time 
+                if self.drive_mode in ('auto', 'auto_train'):
+                    lap_avg = self.lap_sum / self.current_lap 
+                    later_lap_avg = 0.0 if self.later_lap_sum == 0 else self.later_lap_sum / (self.current_lap - 1)
+                    print(f"Lap {self.current_lap}: {lap_time:.2f} | avg : {lap_avg:.3f} / {later_lap_avg:.3f}")
+                else:
+                    print(f"Lap {self.current_lap}: {lap_time:.2f}")
                 self.lap_nodes.clear()
             else: 
                 # display '-' for time if not a complete lap
@@ -93,6 +106,47 @@ class SimpleClient(SDClient):
 
         if json_packet['msg_type'] == "telemetry":
 
+            # track lap progress
+            if not self.all_nodes:
+                self.all_nodes = set(range(json_packet['totalNodes']))
+            self.lap_nodes.add(json_packet['activeNode'])
+            
+            # ==========================================================
+            # startin line detection broke with v22.03.24
+            # this restores lap timing by checking for rollover from maximum
+            # node to node 0
+            # ==========================================================
+            if self.max_node is None:
+                self.max_node = json_packet['totalNodes'] - 1
+            self.current_node = json_packet['activeNode']
+            if self.current_node != self.previous_node:
+                if self.previous_node == self.max_node and self.current_node == 0:
+                    # print('starting line!')
+                    # display time + resent progress if it was a full lap
+                    if len(self.all_nodes - self.lap_nodes) <= 10: # allow for skipped 
+                        lap_time = json_packet['time'] - self.lap_start
+                        self.lap_sum += lap_time
+                        if self.current_lap > 1:
+                            self.later_lap_sum += lap_time 
+                        if self.drive_mode in ('auto', 'auto_train'):
+                            lap_avg = self.lap_sum / self.current_lap 
+                            later_lap_avg = 0.0 if self.later_lap_sum == 0 else self.later_lap_sum / (self.current_lap - 1)
+                            print(f"Lap {self.current_lap}: {lap_time:.2f} | avg : {lap_avg:.3f} / {later_lap_avg:.3f}")
+                        else:
+                            print(f"Lap {self.current_lap}: {lap_time:.2f}")
+                        self.lap_nodes.clear()
+                    else: 
+                        # display '-' for time if not a complete lap
+                        print(f"Lap {self.current_lap}: -")
+                    # iterate lap
+                    self.lap_start = json_packet['time']
+                    self.timer_start = time.time()
+                    self.current_lap += 1
+                    # record laps if tracking thing separately
+                    if self.record_laps:
+                        self.lap_recorder.record(self.current_lap, json_packet['time'])
+            self.previous_node = self.current_node
+
             # check for crash/timeout if auto-training
             if self.lap_start:
                 self.lap_elapsed = json_packet['time'] - self.lap_start
@@ -101,11 +155,8 @@ class SimpleClient(SDClient):
                     print('Auto-training lap timeout')
                     self.reset_car()
 
-            # track lap progress
-            if not self.all_nodes:
-                self.all_nodes = set(range(json_packet['totalNodes']))
-            self.lap_nodes.add(json_packet['activeNode'])
-
+            # this makes sure that at least one image has been received before
+            # attempting inference
             if self.drive_mode in ('auto', 'auto_train') and self.pilot:
                 # don't try to start predicting without input
                 if not self.current_image:
@@ -113,7 +164,6 @@ class SimpleClient(SDClient):
                 # decode image
                 self.current_image = Image.open(
                     BytesIO(base64.b64decode(json_packet['image']))).getchannel(self.image_depth)
-
                 lap_telem = [
                     'first_lap', 
                     'first_lap_speed', 
@@ -123,23 +173,18 @@ class SimpleClient(SDClient):
                     'lap_type_first',
                     'lap_type_later'
                     ]
-
                 if not self.printed_telem:
                     print([x for x in self.pilot.telemetry_columns if not (x.startswith('activeNode_') or (x in lap_telem))])
                     if len([tc for tc in self.pilot.telemetry_columns if tc in lap_telem]) > 0:
                         print([tc for tc in self.pilot.telemetry_columns if tc in lap_telem])
                     self.printed_telem = True
-
                 # add telemetry from json. don't try to add dummy columns that don't exist
                 self.current_telem = [json_packet[x] for x in self.pilot.telemetry_columns if not (x.startswith('activeNode_') or (x in lap_telem))]
-
                 first_lap = int(self.current_lap == 1)
                 later_lap = int(not first_lap)
-
                 # # mark first lap as such
                 # if 'first_lap' in self.pilot.telemetry_columns:
                 #     self.current_telem.append(self.current_lap == 1)
-
                 # engineered features
                 for lt in [tc for tc in self.pilot.telemetry_columns if tc in lap_telem]:
                     if lt in ['first_lap', 'lap_type_first']:
@@ -152,19 +197,19 @@ class SimpleClient(SDClient):
                             self.current_telem.append(first_lap * json_packet[lt_split[-1]])
                         if lt_split[0] == 'later':
                             self.current_telem.append(later_lap * json_packet[lt_split[-1]])
-                        
-
-
                 # add activeNode dummy columns if necessary
                 if 'activeNode_0' in self.pilot.telemetry_columns:
                     node_dummies = [0] * 250
                     node_dummies[json_packet['activeNode']] = 1
                     self.current_telem.extend(node_dummies)
 
+            # brakes (test)
+            if self.brake_telem is not None: # brake_telem can be zero. ugh.
+                json_packet['brake'] = self.brake_telem
+                self.brake_telem = None
             # Start recording when you first start moving
             if self.recorder and json_packet['throttle'] > 0.0:
                 self.start_recording = True
-
             # record image/telemetry
             del json_packet['msg_type']
             if self.start_recording:
@@ -191,11 +236,11 @@ class SimpleClient(SDClient):
         print('config sent!')
 
 
-    def send_controls(self, steering, throttle):
+    def send_controls(self, steering, throttle, brake):
         p = { "msg_type" : "control",
                 "steering" : steering.__str__(),
                 "throttle" : throttle.__str__(),
-                "brake" : "0.0" }
+                "brake" : brake.__str__() } #"0.0" }
         msg = json.dumps(p)
         self.send(msg)
         #this sleep lets the SDClient thread poll our message and send it out.
@@ -216,21 +261,36 @@ class SimpleClient(SDClient):
         # get normed inputs from controller
         st = self.ctr.norm(ax='left_stick_horz', low=-1.0, high=1.0)
         # e-brake
-        if self.ctr.button('a_button'):
-            fw = 0.0
-            rv = -1.0
-        else:
-            fw = self.ctr.norm(ax='right_trigger', low=0.0, high=1.0)
-            rv = self.ctr.norm(ax='left_trigger', low=0.0, high=-1.0)
+        # if self.ctr.button('a_button'):
+        #     # fw = 0.0
+        #     # rv = 0.0 # or -1.0?
+        #     # th = 0.0
+        #     br = 1.0
+        # else:
+            # fw = self.ctr.norm(ax='right_trigger', low=0.0, high=1.0)
+            # rv = self.ctr.norm(ax='left_trigger', low=0.0, high=-1.0)
+            # br = 0.0
+        th = self.ctr.norm(ax='right_trigger', low=0.0, high=1.0)
+        br = self.ctr.norm(ax='left_trigger', low=0.0, high=1.0)
+        # reverse?
+        if self.ctr.button('b_button'):
+            th *= -1
         if abs(st) < 0.05:
             st = 0.0
-        return st*st_scale, (fw + rv)*th_scale
+        if self.ctr.button('a_button'):
+            br = 1.0
+        # return st*st_scale, (fw + rv)*th_scale, br
+        if self.brake_telem == None:
+            self.brake_telem = br
+        return st*st_scale, th, br
 
     def update(self):
         steering = 0.0
         throttle = 0.0
+        brake = 0.0
         self.ctr.update()
         if not self.driving:
+            brake = 1.0
             if self.ctr.button('start_button'):
                 print('Driving started')
                 self.driving = True
@@ -253,9 +313,10 @@ class SimpleClient(SDClient):
                 steering, throttle = self.auto_update()
                 self.fresh_data = False
         elif self.drive_mode in ('manual', 'telem_test'):
-            steering, throttle = self.manual_update()
-        if self.driving:
-            self.send_controls(steering, throttle)
+            steering, throttle, brake = self.manual_update()
+            brake = max(brake, (not self.driving) * 1.0)
+        # if self.driving:
+        self.send_controls(steering, throttle, brake)
 
         
     def reset_car(self):
@@ -386,6 +447,7 @@ if __name__ == "__main__":
         "model_history": MODEL_HISTORY_PATH,
         "model_type":  MODEL_TYPE,
         "sequence_length": SEQUENCE_LENGTH,
+        "use_brakes": USE_BRAKES,
         # "auto_training": AUTO_TRAINING
     }
     while True: 
