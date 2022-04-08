@@ -55,7 +55,7 @@ class SimpleClient(SDClient):
         self.printed_telem = False
 
         if self.drive_mode in ('auto', 'auto_train'):
-            # self.driving = False
+            self.driving = False
             self.current_image = None
             self.pilot = Autopilot(conf)
         self.ctr = Controller(ctr_type=conf['controller_type'], 
@@ -182,9 +182,6 @@ class SimpleClient(SDClient):
                 self.current_telem = [json_packet[x] for x in self.pilot.telemetry_columns if not (x.startswith('activeNode_') or (x in lap_telem))]
                 first_lap = int(self.current_lap == 1)
                 later_lap = int(not first_lap)
-                # # mark first lap as such
-                # if 'first_lap' in self.pilot.telemetry_columns:
-                #     self.current_telem.append(self.current_lap == 1)
                 # engineered features
                 for lt in [tc for tc in self.pilot.telemetry_columns if tc in lap_telem]:
                     if lt in ['first_lap', 'lap_type_first']:
@@ -236,7 +233,7 @@ class SimpleClient(SDClient):
         print('config sent!')
 
 
-    def send_controls(self, steering, throttle, brake):
+    def send_controls(self, steering=0.0, throttle=0.0, brake=1.0):
         p = { "msg_type" : "control",
                 "steering" : steering.__str__(),
                 "throttle" : throttle.__str__(),
@@ -260,35 +257,43 @@ class SimpleClient(SDClient):
     def manual_update(self, st_scale=1.0, th_scale=1.0):
         # get normed inputs from controller
         st = self.ctr.norm(ax='left_stick_horz', low=-1.0, high=1.0)
-        # e-brake
-        # if self.ctr.button('a_button'):
-        #     # fw = 0.0
-        #     # rv = 0.0 # or -1.0?
-        #     # th = 0.0
-        #     br = 1.0
-        # else:
-            # fw = self.ctr.norm(ax='right_trigger', low=0.0, high=1.0)
-            # rv = self.ctr.norm(ax='left_trigger', low=0.0, high=-1.0)
-            # br = 0.0
-        th = self.ctr.norm(ax='right_trigger', low=0.0, high=1.0)
-        br = self.ctr.norm(ax='left_trigger', low=0.0, high=1.0)
-        # reverse?
-        if self.ctr.button('b_button'):
-            th *= -1
         if abs(st) < 0.05:
             st = 0.0
+        # e-brake
         if self.ctr.button('a_button'):
-            br = 1.0
-        # return st*st_scale, (fw + rv)*th_scale, br
-        if self.brake_telem == None:
-            self.brake_telem = br
-        return st*st_scale, th, br
+            fw = 0.0
+            rv = -1.0
+        else:
+            fw = self.ctr.norm(ax='right_trigger', low=0.0, high=1.0)
+            rv = self.ctr.norm(ax='left_trigger', low=0.0, high=-1.0)
+        return st*st_scale, (fw + rv)*th_scale, 0.0
+        # th = self.ctr.norm(ax='right_trigger', low=0.0, high=1.0)
+        # br = self.ctr.norm(ax='left_trigger', low=0.0, high=1.0)
+        # reverse (when brakes)
+        # if self.ctr.button('b_button'):d
+            # th *= -1
+        # if self.ctr.button('a_button'):
+        #     br = 1.0
+        # if self.brake_telem == None:
+        #     self.brake_telem = br
+        # return st*st_scale, th, br
 
     def update(self):
         steering = 0.0
         throttle = 0.0
         brake = 0.0
-        self.ctr.update()
+        try:
+            self.ctr.update()
+        except Exception as e:
+            if self.drive_mode == 'manual':
+                self.driving = False
+            print(e)
+            print('attemping to reconnect')
+            try:
+                self.ctr = Controller(ctr_type=conf['controller_type'], 
+                                path=conf['controller_path'])
+            except:
+                print("couldn't reconnect controller")
         if not self.driving:
             brake = 1.0
             if self.ctr.button('start_button'):
@@ -299,23 +304,23 @@ class SimpleClient(SDClient):
                 if self.driving:
                     print('auto-training started')
         else:
+            if self.drive_mode in ('auto', 'auto_train'):
+                if not self.current_image:
+                    print("Waiting for first image")
+                    return 
+                if self.fresh_data:
+                    steering, throttle = self.auto_update()
+                    self.fresh_data = False
+            elif self.drive_mode in ('manual', 'telem_test'):
+                steering, throttle, brake = self.manual_update()
+                brake = max(brake, (not self.driving) * 1.0)
             if self.ctr.button('select_button'):
                 print('Driving stopped')
                 self.driving = False
-                self.send_controls(0.0, 0.0)
+                self.send_controls(0.0, 0.0, 1.0)
         if self.ctr.button('y_button'):
             self.reset_car()
-        if self.drive_mode in ('auto', 'auto_train'):
-            if not self.current_image:
-                print("Waiting for first image")
-                return 
-            if self.fresh_data:
-                steering, throttle = self.auto_update()
-                self.fresh_data = False
-        elif self.drive_mode in ('manual', 'telem_test'):
-            steering, throttle, brake = self.manual_update()
-            brake = max(brake, (not self.driving) * 1.0)
-        # if self.driving:
+        
         self.send_controls(steering, throttle, brake)
 
         
