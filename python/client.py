@@ -51,13 +51,14 @@ class SimpleClient(SDClient):
         self.max_node = None
         self.use_brakes = conf['use_brakes']
         self.brake_telem = None
-
+        self.trial_laps = 10 # TODO: make this a conf thing
         self.printed_telem = False
 
         if self.drive_mode in ('auto', 'auto_train'):
             self.driving = False
             self.current_image = None
             self.pilot = Autopilot(conf)
+            self.trial_times = []
         self.ctr = Controller(ctr_type=conf['controller_type'], 
                                 path=conf['controller_path'])
         if self.record_format:
@@ -79,7 +80,7 @@ class SimpleClient(SDClient):
             self.car_loaded = True        
 
         if json_packet['msg_type'] == "collision_with_starting_line":
-            print('starting line!')
+            print('collision_with_starting_line!')
             # display time + resent progress if it was a full lap
             if len(self.all_nodes - self.lap_nodes) <= 10: # allow for skipped 
                 lap_time = json_packet['timeStamp'] - self.lap_start
@@ -106,6 +107,11 @@ class SimpleClient(SDClient):
 
         if json_packet['msg_type'] == "telemetry":
 
+            if json_packet['hit'] != 'none':
+                # print(f"hit: {json_packet['hit'][-1]}")
+                print(f"hit: {json_packet['hit']}")
+
+
             # track lap progress
             if not self.all_nodes:
                 self.all_nodes = set(range(json_packet['totalNodes']))
@@ -131,10 +137,16 @@ class SimpleClient(SDClient):
                         if self.drive_mode in ('auto', 'auto_train'):
                             lap_avg = self.lap_sum / self.current_lap 
                             later_lap_avg = 0.0 if self.later_lap_sum == 0 else self.later_lap_sum / (self.current_lap - 1)
-                            print(f"Lap {self.current_lap}: {lap_time:.2f} | avg : {lap_avg:.3f} / {later_lap_avg:.3f}")
+                            print(f"Lap {self.current_lap}: {lap_time:.2f} | avg : {lap_avg:.3f} | {later_lap_avg:.3f}")
                         else:
                             print(f"Lap {self.current_lap}: {lap_time:.2f}")
                         self.lap_nodes.clear()
+                        # add lap time to trial lap times if auto-trialing
+                        if self.drive_mode == 'auto':
+                            if self.current_lap <= self.trial_laps:
+                                self.trial_times.append(lap_time)
+                                self.print_trial_times()
+                        
                     else: 
                         # display '-' for time if not a complete lap
                         print(f"Lap {self.current_lap}: -")
@@ -146,6 +158,7 @@ class SimpleClient(SDClient):
                     if self.record_laps:
                         self.lap_recorder.record(self.current_lap, json_packet['time'])
             self.previous_node = self.current_node
+
 
             # check for crash/timeout if auto-training
             if self.lap_start:
@@ -323,6 +336,12 @@ class SimpleClient(SDClient):
         
         self.send_controls(steering, throttle, brake)
 
+    def print_trial_times(self):
+        print('trial times: ', end='')
+        for n, t in enumerate(self.trial_times):
+            print(f'{t:.2f}' + (',' * (n < (len(self.trial_times) - 1))), end=' ')
+        later_lap_avg = 0.0 if self.later_lap_sum == 0 else self.later_lap_sum / (self.current_lap - 1)
+        print(f'| {later_lap_avg:.3f}')
         
     def reset_car(self):
         self.refresh_sim = True
