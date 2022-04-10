@@ -14,6 +14,7 @@ from config import *
 from io import BytesIO
 from re import T
 from PIL import Image
+from abc import abstractmethod
 
 from gym_donkeycar.core.sim_client import SDClient
 
@@ -267,51 +268,61 @@ class Client(SDClient):
             inputs = [self.current_image]
         steering, throttle = self.pilot.infer(inputs)
         return steering, throttle
-
-    def update(self):
-        steering = 0.0
-        throttle = 0.0
-        brake = 0.0
+    
+    def update_controller(self):
         try:
             self.ctr.update()
+            return True
         except Exception as e:
-            if self.drive_mode == 'manual':
-                self.driving = False
             print(e)
-            print('attemping to reconnect')
+            print('attemping to reconnect to controller')
             try:
                 self.ctr = Controller(ctr_type=conf['controller_type'], 
                                 path=conf['controller_path'])
             except:
                 print("couldn't reconnect controller")
-        if not self.driving:
-            brake = 1.0
-            if self.ctr.button('start_button'):
-                print('Driving started')
-                self.driving = True
-            elif self.drive_mode == 'auto_train':
-                self.driving = time.time() - self.sim_start > START_DELAY
-                if self.driving:
-                    print('auto-training started')
-        else:
-            if self.drive_mode in ('auto', 'auto_train'):
-                if not self.current_image:
-                    print("Waiting for first image")
-                    return 
-                if self.fresh_data:
-                    steering, throttle = self.auto_update()
-                    self.fresh_data = False
-            elif self.drive_mode in ('manual', 'telem_test'):
-                steering, throttle, brake = self.manual_update()
-                brake = max(brake, (not self.driving) * 1.0)
-            if self.ctr.button('select_button'):
-                print('Driving stopped')
-                self.driving = False
-                self.send_controls(0.0, 0.0, 1.0)
-        if self.ctr.button('y_button'):
-            self.reset_car()
+            return False
+
+    @ abstractmethod
+    def update(self):
+        pass
+
+        # steering = 0.0
+        # throttle = 0.0
+        # brake = 0.0
         
-        self.send_controls(steering, throttle, brake)
+        # controller_updated = self.update_controller()
+        # if not controller_updated:
+        #     self.driving = False
+
+        # if not self.driving:
+        #     brake = 1.0
+        #     if self.ctr.button('start_button'):
+        #         print('Driving started')
+        #         self.driving = True
+        #     elif self.drive_mode == 'auto_train':
+        #         self.driving = time.time() - self.sim_start > START_DELAY
+        #         if self.driving:
+        #             print('auto-training started')
+        # else:
+        #     if self.drive_mode in ('auto', 'auto_train'):
+        #         if not self.current_image:
+        #             print("Waiting for first image")
+        #             return 
+        #         if self.fresh_data:
+        #             steering, throttle = self.auto_update()
+        #             self.fresh_data = False
+        #     elif self.drive_mode in ('manual', 'telem_test'):
+        #         steering, throttle, brake = self.manual_update()
+        #         brake = max(brake, (not self.driving) * 1.0)
+        #     if self.ctr.button('select_button'):
+        #         print('Driving stopped')
+        #         self.driving = False
+        #         self.send_controls(0.0, 0.0, 1.0)
+        # if self.ctr.button('y_button'):
+        #     self.reset_car()
+        
+        # self.send_controls(steering, throttle, brake)
 
     def print_trial_times(self):
         print('trial times: ', end='')
@@ -331,6 +342,48 @@ class Client(SDClient):
     def stop(self):
         print(f'Client stopping after {self.current_lap-1} laps.')
         super().stop()
+
+
+class Autonomous_Client(Client):
+
+    def __init__(self, address, conf, poll_socket_sleep_time=0.01):
+        super().__init__(address, conf=conf, poll_socket_sleep_time=poll_socket_sleep_time)
+
+    def update(self):
+        steering = 0.0
+        throttle = 0.0
+        brake = 0.0
+        
+        controller_updated = self.update_controller()
+        if not controller_updated:
+            self.driving = False
+
+        if not self.driving:
+            brake = 1.0
+            if self.ctr.button('start_button'):
+                print('Driving started')
+                self.driving = True
+            elif self.drive_mode == 'auto_train':
+                self.driving = time.time() - self.sim_start > START_DELAY
+                if self.driving:
+                    print('auto-training started')
+        else:
+            if not self.current_image:
+                print("Waiting for first image")
+                return 
+            if self.fresh_data:
+                steering, throttle = self.auto_update()
+                self.fresh_data = False
+            if self.ctr.button('select_button'):
+                print('Driving stopped')
+                self.driving = False
+                self.send_controls(0.0, 0.0, 1.0)
+        if self.ctr.button('y_button'):
+            self.reset_car()
+        
+        self.send_controls(steering, throttle, brake)
+
+
 
 
 class Manual_Client(Client):
@@ -375,27 +428,19 @@ class Manual_Client(Client):
         return (fw + rv) * self.throttle_scale
 
     def update(self):
-
         # attempt to update controller
-        try:
-            self.ctr.update()
-        except Exception as e:
-            print(e)
+        controller_updated = self.update_controller()
+        if not controller_updated:
             self.driving = False
-            print('attemping to reconnect to controller')
-            try:
-                self.ctr = Controller(ctr_type=conf['controller_type'], 
-                                path=conf['controller_path'])
-            except:
-                print("couldn't reconnect controller")
+            self.send_controls(0.0, 0.0, 1.0)
             return
 
         # check reset
         if self.ctr.button('y_button'):
             self.reset_car()
             return
-
-        # get control inputs       
+        
+        # get control inputs      
         steering = 0.0
         throttle = 0.0
         brake = 0.0
@@ -413,8 +458,6 @@ class Manual_Client(Client):
         brake = max(brake, (not self.driving) * 1.0)
 
         self.send_controls(steering, throttle, brake)
-
-
 
 
 # Create client and connect it with the simulator
