@@ -53,6 +53,8 @@ class Client(SDClient):
         self.brake_telem = None
         self.trial_laps = 10 # TODO: make this a conf thing
         self.printed_telem = False
+        self.steering_scale = 1.0
+        self.throttle_scale = 1.0
 
         if self.drive_mode in ('auto', 'auto_train'):
             self.driving = False
@@ -266,31 +268,6 @@ class Client(SDClient):
         steering, throttle = self.pilot.infer(inputs)
         return steering, throttle
 
-
-    def manual_update(self, st_scale=1.0, th_scale=1.0):
-        # get normed inputs from controller
-        st = self.ctr.norm(ax='left_stick_horz', low=-1.0, high=1.0)
-        if abs(st) < 0.05:
-            st = 0.0
-        # e-brake
-        if self.ctr.button('a_button'):
-            fw = 0.0
-            rv = -1.0
-        else:
-            fw = self.ctr.norm(ax='right_trigger', low=0.0, high=1.0)
-            rv = self.ctr.norm(ax='left_trigger', low=0.0, high=-1.0)
-        return st*st_scale, (fw + rv)*th_scale, 0.0
-        # th = self.ctr.norm(ax='right_trigger', low=0.0, high=1.0)
-        # br = self.ctr.norm(ax='left_trigger', low=0.0, high=1.0)
-        # reverse (when brakes)
-        # if self.ctr.button('b_button'):d
-            # th *= -1
-        # if self.ctr.button('a_button'):
-        #     br = 1.0
-        # if self.brake_telem == None:
-        #     self.brake_telem = br
-        # return st*st_scale, th, br
-
     def update(self):
         steering = 0.0
         throttle = 0.0
@@ -354,6 +331,90 @@ class Client(SDClient):
     def stop(self):
         print(f'Client stopping after {self.current_lap-1} laps.')
         super().stop()
+
+
+class Manual_Client(Client):
+
+    def __init__(self, address, conf, poll_socket_sleep_time=0.01):
+        super().__init__(address, conf=conf, poll_socket_sleep_time=poll_socket_sleep_time)
+
+    def manual_steering(self):
+        st = self.ctr.norm(ax='left_stick_horz', low=-1.0, high=1.0)
+        if abs(st) < 0.05:
+            st = 0.0
+        return st * self.steering_scale
+
+    def manual_throttle(self):
+        if self.use_brakes:
+            return self.brake_throttle()
+        else:
+            return self.brakeless_throttle(), 0.0
+
+    def brake_throttle(self):
+        th = self.ctr.norm(ax='right_trigger', low=0.0, high=1.0)
+        br = self.ctr.norm(ax='left_trigger', low=0.0, high=1.0)
+        # reverse
+        if self.ctr.button('b_button'):
+            th *= -1
+        # e-brake
+        if self.ctr.button('a_button'):
+            br = 1.0
+        if self.brake_telem == None:
+            self.brake_telem = br
+        return th, br
+
+    def brakeless_throttle(self):
+        # emergency "brake"
+        fw, rv = 0.0, 0.0
+        if self.ctr.button('a_button'):
+            fw = 0.0
+            rv = -1.0
+        else:
+            fw = self.ctr.norm(ax='right_trigger', low=0.0, high=1.0)
+            rv = self.ctr.norm(ax='left_trigger', low=0.0, high=-1.0)
+        return (fw + rv) * self.throttle_scale
+
+    def update(self):
+
+        # attempt to update controller
+        try:
+            self.ctr.update()
+        except Exception as e:
+            print(e)
+            self.driving = False
+            print('attemping to reconnect to controller')
+            try:
+                self.ctr = Controller(ctr_type=conf['controller_type'], 
+                                path=conf['controller_path'])
+            except:
+                print("couldn't reconnect controller")
+            return
+
+        # check reset
+        if self.ctr.button('y_button'):
+            self.reset_car()
+            return
+
+        # get control inputs       
+        steering = 0.0
+        throttle = 0.0
+        brake = 0.0
+        if not self.driving:
+            if self.ctr.button('start_button'):
+                print('Driving started')
+                self.driving = True
+        else:
+            if self.ctr.button('select_button'):
+                print('Driving stopped')
+                self.driving = False
+            else:
+                steering = self.manual_steering()
+                throttle, brake = self.manual_throttle()
+        brake = max(brake, (not self.driving) * 1.0)
+
+        self.send_controls(steering, throttle, brake)
+
+
 
 
 # Create client and connect it with the simulator

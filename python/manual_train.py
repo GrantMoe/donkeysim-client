@@ -16,7 +16,7 @@ from gym_donkeycar.core.sim_client import SDClient
 from autopilot import Autopilot
 from controller import Controller
 from sim_recorder import SimRecorder, LapRecorder
-from client import SimpleClient
+from client import Manual_Client
 
 
 # Create client and connect it with the simulator
@@ -25,7 +25,7 @@ def run_client(conf):
 
     host = conf["host"] # "trainmydonkey.com" for virtual racing
     port = conf["port"]
-    client = SimpleClient(address=(host, port), conf=conf,)
+    client = Manual_Client(address=(host, port), conf=conf,)
     # Load Track
     msg = f'{{"msg_type" : "load_scene", "scene_name" : "{conf["track"]}"}}'
     client.send(msg)
