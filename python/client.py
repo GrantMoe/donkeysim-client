@@ -21,7 +21,7 @@ from autopilot import Autopilot
 from controller import Controller
 from sim_recorder import SimRecorder, LapRecorder
 
-class SimpleClient(SDClient):
+class Client(SDClient):
 
     def __init__(self, address, conf=None, poll_socket_sleep_time=0.01):
         super().__init__(*address, poll_socket_sleep_time=poll_socket_sleep_time)
@@ -362,7 +362,7 @@ def run_client(conf):
 
     host = conf["host"] # "trainmydonkey.com" for virtual racing
     port = conf["port"]
-    client = SimpleClient(address=(host, port), conf=conf,)
+    client = Client(address=(host, port), conf=conf,)
     # Load Track
     msg = f'{{"msg_type" : "load_scene", "scene_name" : "{conf["track"]}"}}'
     client.send(msg)
