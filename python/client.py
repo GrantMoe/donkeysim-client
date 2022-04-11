@@ -39,18 +39,18 @@ class Client(SDClient):
         self.driving = True
         self.lap_nodes = set()
         self.all_nodes = None
-        # self.pilot = None
+        # self.pilot = Autopilot(conf)
         self.fresh_data = False
         self.recorder = None
         self.record_laps = conf['record_laps']
         self.refresh_sim = False
         self.previous_node = None
         self.current_node = None
-        self.max_node = None
+        self.max_node = 249
         self.use_brakes = conf['use_brakes']
         self.brake_telem = None
         self.trial_laps = 10 # TODO: make this a conf thing
-        self.printed_telem = False
+        # self.printed_telem = False
         self.steering_scale = 1.0
         self.throttle_scale = 1.0
 
@@ -82,34 +82,66 @@ class Client(SDClient):
 
         if json_packet['msg_type'] == "collision_with_starting_line":
             print('collision_with_starting_line!')
+            # display time + resent progress if it was a full lap
+            if len(self.all_nodes - self.lap_nodes) <= 10: # allow for skipped 
+                lap_time = json_packet['timeStamp'] - self.lap_start
+                self.lap_sum += lap_time
+                if self.current_lap > 1:
+                    self.later_lap_sum += lap_time 
+                if self.drive_mode in ('auto', 'auto_train'):
+                    lap_avg = self.lap_sum / self.current_lap 
+                    later_lap_avg = 0.0 if self.later_lap_sum == 0 else self.later_lap_sum / (self.current_lap - 1)
+                    print(f"Lap {self.current_lap}: {lap_time:.2f} | avg : {lap_avg:.3f} / {later_lap_avg:.3f}")
+                else:
+                    print(f"Lap {self.current_lap}: {lap_time:.2f}")
+                self.lap_nodes.clear()
+            else: 
+                # display '-' for time if not a complete lap
+                print(f"Lap {self.current_lap}: -")
+            # iterate lap
+            self.lap_start = json_packet['timeStamp']
+            self.timer_start = time.time()
+            self.current_lap += 1
+            # record laps if tracking thing separately
+            if self.record_laps:
+                self.lap_recorder.record(self.current_lap, json_packet['timeStamp'])
 
         if json_packet['msg_type'] == "telemetry":
             del json_packet['msg_type']
-            self.on_telemetry()
+            # if not self.pilot.active:# is not None:
+            self.on_telemetry(json_packet)
 
 
+    @ abstractmethod
     def on_telemetry(self, json_packet):
-        if json_packet['hit'] != 'none':
-            print(f"hit: {json_packet['hit']}")
+        pass
+        # if json_packet['hit'] != 'none':
+        #     print(f"hit: {json_packet['hit']}")
 
-        self.process_lap(json_packet)
+        # # if self.max_node is None:
+        # #     self.max_node = json_packet['totalNodes'] - 1
 
-        telemetry_data = self.process_telemetry(json_packet=json_packet)
+        # # self.process_lap(json_packet)
+        # if not self.all_nodes:
+        #     self.all_nodes = set(range(json_packet['totalNodes']))
+        # self.lap_nodes.add(json_packet['activeNode'])
 
-        # brakes (test)
-        if self.brake_telem is not None: # brake_telem can be zero. ugh.
-            telemetry_data['brake'] = self.brake_telem
-            self.brake_telem = None
-        # add lap
-        telemetry_data['lap'] = self.current_lap
-        # Start recording when you first start moving
-        if self.recorder and json_packet['throttle'] > 0.0:
-            self.start_recording = True
-        # record image/telemetry
-        if self.start_recording:
-            self.recorder.record(telemetry_data)
-        # indicate there is new data on which to make a prediction
-        # self.fresh_data = True    
+        # telemetry_data = self.process_telemetry(json_packet=json_packet)
+
+        # # brakes (test)
+        # if self.brake_telem is not None: # brake_telem can be zero. ugh.
+        #     telemetry_data['brake'] = self.brake_telem
+        #     self.brake_telem = None
+        # # add lap
+        # telemetry_data['lap'] = self.current_lap
+        # # Start recording when you first start moving
+        # if self.recorder and json_packet['throttle'] > 0.0:
+        #     self.start_recording = True
+        # # record image/telemetry
+        # if self.start_recording:
+        #     self.recorder.record(telemetry_data)
+        # # indicate there is new data on which to make a prediction
+        # # self.fresh_data = True    
 
     def print_lap_time(self, lap_time):
         print(f"Lap {self.current_lap}: {lap_time:.2f}")
@@ -213,11 +245,20 @@ class Client(SDClient):
 class Autonomous_Client(Client):
 
     def __init__(self, address, conf, poll_socket_sleep_time=0.01):
-        super().__init__(address, conf=conf, poll_socket_sleep_time=poll_socket_sleep_time)
         self.driving = False
         self.current_image = None
         self.pilot = Autopilot(conf)
+        time.sleep(2)
         self.trial_times = []
+        self.current_telem = None
+        self.fresh_data = False
+        # self.printed_telem = False
+        time.sleep(1)
+        print('starting auto client')
+        super().__init__(address, conf=conf, poll_socket_sleep_time=poll_socket_sleep_time)
+
+
+        # self.max_node = 249
 
     def print_lap_time(self, lap_time):
         lap_avg = self.lap_sum / self.current_lap 
@@ -234,10 +275,42 @@ class Autonomous_Client(Client):
         later_lap_avg = 0.0 if self.later_lap_sum == 0 else self.later_lap_sum / (self.current_lap - 1)
         print(f'| {later_lap_avg:.3f}')
 
+    def on_telemetry(self, json_packet):
+        if not self.pilot.active:
+            return
+
+        if json_packet['hit'] != 'none':
+            print(f"hit: {json_packet['hit']}")
+
+        # if self.max_node is None:
+        #     self.max_node = json_packet['totalNodes'] - 1
+
+        # self.process_lap(json_packet)
+        if not self.all_nodes:
+            self.all_nodes = set(range(json_packet['totalNodes']))
+        self.lap_nodes.add(json_packet['activeNode'])
+
+        telemetry_data = self.process_telemetry(json_packet=json_packet)
+
+        # brakes (test)
+        if self.brake_telem is not None: # brake_telem can be zero. ugh.
+            telemetry_data['brake'] = self.brake_telem
+            self.brake_telem = None
+        # add lap
+        telemetry_data['lap'] = self.current_lap
+        # Start recording when you first start moving
+        if self.recorder and json_packet['throttle'] > 0.0:
+            self.start_recording = True
+        # record image/telemetry
+        if self.start_recording:
+            self.recorder.record(telemetry_data)
+        # indicate there is new data on which to make a prediction
+        # self.fresh_data = True    
+
     def process_telemetry(self, json_packet):
         # don't try to start predicting without input
-        if not self.current_image:
-            print('got first image')
+        # if self.current_image is None:
+            # print('got first image')
         # decode image
         self.current_image = Image.open(
             BytesIO(base64.b64decode(json_packet['image']))).getchannel(self.image_depth)
@@ -250,11 +323,11 @@ class Autonomous_Client(Client):
             'lap_type_first',
             'lap_type_later'
             ]
-        if not self.printed_telem:
-            print([x for x in self.pilot.telemetry_columns if not (x.startswith('activeNode_') or (x in lap_telem))])
-            if len([tc for tc in self.pilot.telemetry_columns if tc in lap_telem]) > 0:
-                print([tc for tc in self.pilot.telemetry_columns if tc in lap_telem])
-            self.printed_telem = True
+        # if not self.printed_telem:
+        #     print([x for x in self.pilot.telemetry_columns if not (x.startswith('activeNode_') or (x in lap_telem))])
+        #     if len([tc for tc in self.pilot.telemetry_columns if tc in lap_telem]) > 0:
+        #         print([tc for tc in self.pilot.telemetry_columns if tc in lap_telem])
+        #     self.printed_telem = True
         # add telemetry from json. don't try to add dummy columns that don't exist
         self.current_telem = [json_packet[x] for x in self.pilot.telemetry_columns if not (x.startswith('activeNode_') or (x in lap_telem))]
         first_lap = int(self.current_lap == 1)
@@ -276,6 +349,8 @@ class Autonomous_Client(Client):
             node_dummies = [0] * 250
             node_dummies[json_packet['activeNode']] = 1
             self.current_telem.extend(node_dummies)
+        self.fresh_data = True
+        return json_packet
 
 
     def update(self):
@@ -292,13 +367,16 @@ class Autonomous_Client(Client):
             self.reset_car()
             return
         # infer    
-        if not self.current_image:
+        if self.current_image == None:
                 print("Waiting for first image")
                 self.driving = False
+                return
         else:
             self.update_driving_status()
-            inputs = self.current_image, self.current_telem
-            steering, throttle = self.pilot.infer(inputs)
+            if self.fresh_data:
+                inputs = self.current_image, self.current_telem
+                steering, throttle = self.pilot.infer(inputs)
+                self.fresh_data = False
     
         if not self.driving:
             steering, throttle, brake = 0.0, 0.0, 1.0

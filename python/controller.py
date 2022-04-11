@@ -106,9 +106,6 @@ class Controller:
         return self.dev_.value[self.map_['button'][btn]]
 
 
-
-
-
 def main():
     ctr = Controller()
     while True:

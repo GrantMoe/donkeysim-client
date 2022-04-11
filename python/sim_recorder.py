@@ -176,7 +176,7 @@ class CSVRecorder:
         os.makedirs(self.img_dir, exist_ok=True)
         self.csv_file_path = f'{self.dir}/data.csv'
         cols = TELEMETRY_COLUMNS[conf.telem_type]
-        if conf.use_brakes:
+        if conf.use_brakes and 'brake' not in cols:
             cols.append('brake')
         with open(self.csv_file_path, 'w', newline='') as csv_outfile:
             row_writer = csv.writer(csv_outfile)

@@ -13,16 +13,16 @@ START_DELAY = 3 # don't know
 
 RECORD_LAPS = False
 HAS_TELEM = True
-USE_BRAKES = True
+USE_BRAKES = False
 DEFAULT_TELEM = 'donkey_extended' 
 
 DEFAULT_TRACK = 'mountain_track' #  'generated_road', 'warehouse', 'sparkfun_avc', 'generated_track', 'roboracingleague_1', 'waveshare', 'mini_monaco', 'warren', 'circuit_launch', 'mountain_track'
-DEFAULT_RECORD_FORMAT =  'CSV' # None, 'ASL', 'CSV', 'tub'
+DEFAULT_RECORD_FORMAT =  None # None, 'ASL', 'CSV', 'tub'
 DEFAULT_IMAGE_FORMAT = 'PNG' # 'JPG', 'PNG', 'TGA'
 DEFAULT_IMAGE_DEPTH = 1 # 1:'grayscale', 3:'rgb'
-DEFAULT_DRIVE_MODE =  'manual' # 'auto', 'auto_train', 'manual' 
-DEFAULT_HOST = "127.0.0.1" # localhost 
-# DEFAULT_HOST = "donkey-sim.roboticist.dev" # twitch server
+#DEFAULT_DRIVE_MODE =  'auto' # 'auto', 'auto_train', 'manual' 
+# DEFAULT_HOST = "127.0.0.1" # localhost 
+DEFAULT_HOST = "donkey-sim.roboticist.dev" # twitch server
 
 racer_conf = {
     'msg_type' : 'racer_info',
@@ -43,7 +43,7 @@ car_conf = {
     'body_r': 234, # orange=255, pink=234
     'body_g' : 21, # orange=72, pink=21 
     'body_b' : 144, # orange=0, pink=144 
-    'car_name' : '', #'Grant', #'A 1985 Toyota Camry', ' ∅ ', # 
+    'car_name' : 'Grant', #'A 1985 Toyota Camry', ' ∅ ', # 
     'font_size' : 50,
 }
 
@@ -71,20 +71,7 @@ cam_conf = {
     'rot_x' : 0.0 
 }
 
-def cam_config():
-    return msg_builder(cam_conf)
-def car_config():
-    return msg_builder(car_conf)
-def racer_config():
-    return msg_builder(racer_conf)
 
-# This is silly, and should probably be somewhere else
-def msg_builder(config_dict):
-    msg_string = "{"
-    for key, value in config_dict.items():
-        msg_string += f'"{key}" : "{value}", '
-    msg_string += "}"
-    return msg_string
 
 # 0 is default
 TRACKS = [
