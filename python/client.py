@@ -13,7 +13,7 @@ from PIL import Image
 from gym_donkeycar.core.sim_client import SDClient
 
 from autopilot import Autopilot
-from config import AUTO_TIMEOUT, cam_config, car_config, racer_config
+from config import AUTO_TIMEOUT, cam_conf, car_conf, racer_conf
 from controller import Controller
 from sim_recorder import SimRecorder, LapRecorder
 
@@ -54,17 +54,18 @@ class Client(SDClient):
         self.steering_scale = 1.0
         self.throttle_scale = 1.0
 
-        # if self.drive_mode in ('auto', 'auto_train'):
-        #     self.driving = False
-        #     self.current_image = None
-        #     self.pilot = Autopilot(conf)
-        #     self.trial_times = []
         self.ctr = Controller(self.controller_type, self.controller_path)
         if self.record_format:
             self.recorder = SimRecorder(self)
         if self.record_laps:
             self.lap_recorder = LapRecorder(conf)
 
+    def config_builder(self, config_dict):
+        msg_string = "{"
+        for key, value in config_dict.items():
+            msg_string += f'"{key}" : "{value}", '
+        msg_string += "}"
+        return msg_string
 
     def on_msg_recv(self, json_packet):
 
@@ -188,15 +189,15 @@ class Client(SDClient):
 
     def send_config(self):
         # Racer
-        msg = racer_config()
+        msg = self.config_builder(racer_conf)
         self.send(msg)
         time.sleep(0.2)
         # Car
-        msg = car_config()
+        msg = self.config_builder(car_conf)
         self.send(msg)
         time.sleep(0.2)
         # Camera
-        msg = cam_config()
+        msg = self.config_builder(cam_conf)
         self.send(msg)
         time.sleep(0.2)
         print('config sent!')
