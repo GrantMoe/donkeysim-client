@@ -27,7 +27,6 @@ def run_client(conf):
     port = conf["port"]
     client = Autonomous_Client(address=(host, port), conf=conf,)
     # Load Track
-    time.sleep(5)
     msg = f'{{"msg_type" : "load_scene", "scene_name" : "{conf["track"]}"}}'
     client.send(msg)
     loaded = False

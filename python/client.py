@@ -70,7 +70,7 @@ class Client(SDClient):
     def on_msg_recv(self, json_packet):
 
         # telemetry will flood the output, starting line is redundant with below checks
-        if json_packet['msg_type'] not in ["telemetry"]: #, "collision_with_starting_line"]:
+        if json_packet['msg_type'] not in ["telemetry", "collision_with_starting_line"]:
             print("got:", json_packet)
 
         if json_packet['msg_type'] == "need_car_config":
@@ -81,7 +81,7 @@ class Client(SDClient):
             self.car_loaded = True        
 
         if json_packet['msg_type'] == "collision_with_starting_line":
-            print('collision_with_starting_line!')
+            # print('collision_with_starting_line!')
             # display time + resent progress if it was a full lap
             if len(self.all_nodes - self.lap_nodes) <= 10: # allow for skipped 
                 lap_time = json_packet['timeStamp'] - self.lap_start
@@ -248,12 +248,11 @@ class Autonomous_Client(Client):
         self.driving = False
         self.current_image = None
         self.pilot = Autopilot(conf)
-        time.sleep(2)
+        time.sleep(1)
         self.trial_times = []
         self.current_telem = None
         self.fresh_data = False
         # self.printed_telem = False
-        time.sleep(1)
         print('starting auto client')
         super().__init__(address, conf=conf, poll_socket_sleep_time=poll_socket_sleep_time)
 
