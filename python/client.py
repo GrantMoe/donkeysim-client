@@ -2,23 +2,18 @@
 # https://github.com/tawnkramer/sdsandbox/blob/master/src/test_client.py 
 # by tawnkramer (https://github.com/tawnkramer)
 
-import argparse
 import base64
 import json
-import os
 import time
-import logging
 
-from config import *
-
-from io import BytesIO
-from re import T
-from PIL import Image
 from abc import abstractmethod
+from io import BytesIO
+from PIL import Image
 
 from gym_donkeycar.core.sim_client import SDClient
 
 from autopilot import Autopilot
+from config import AUTO_TIMEOUT, cam_config, car_config, racer_config
 from controller import Controller
 from sim_recorder import SimRecorder, LapRecorder
 
@@ -44,7 +39,7 @@ class Client(SDClient):
         self.driving = True
         self.lap_nodes = set()
         self.all_nodes = None
-        self.pilot = None
+        # self.pilot = None
         self.fresh_data = False
         self.recorder = None
         self.record_laps = conf['record_laps']
@@ -59,11 +54,11 @@ class Client(SDClient):
         self.steering_scale = 1.0
         self.throttle_scale = 1.0
 
-        if self.drive_mode in ('auto', 'auto_train'):
-            self.driving = False
-            self.current_image = None
-            self.pilot = Autopilot(conf)
-            self.trial_times = []
+        # if self.drive_mode in ('auto', 'auto_train'):
+        #     self.driving = False
+        #     self.current_image = None
+        #     self.pilot = Autopilot(conf)
+        #     self.trial_times = []
         self.ctr = Controller(self.controller_type, self.controller_path)
         if self.record_format:
             self.recorder = SimRecorder(self)
@@ -133,28 +128,19 @@ class Client(SDClient):
             if self.brake_telem is not None: # brake_telem can be zero. ugh.
                 telemetry_data['brake'] = self.brake_telem
                 self.brake_telem = None
-
             # add lap
             telemetry_data['lap'] = self.current_lap
-            
             # Start recording when you first start moving
             if self.recorder and json_packet['throttle'] > 0.0:
                 self.start_recording = True
             # record image/telemetry
             if self.start_recording:
                 self.recorder.record(telemetry_data)
-
             # indicate there is new data on which to make a prediction
-            self.fresh_data = True    
+            # self.fresh_data = True    
 
-
-    def print_trial_times(self):
-        print('trial times: ', end='')
-        for n, t in enumerate(self.trial_times):
-            print(f'{t:.2f}' + (',' * (n < (len(self.trial_times) - 1))), end=' ')
-        later_lap_avg = 0.0 if self.later_lap_sum == 0 else self.later_lap_sum / (self.current_lap - 1)
-        print(f'| {later_lap_avg:.3f}')
-
+    def print_lap_time(self, lap_time):
+        print(f"Lap {self.current_lap}: {lap_time:.2f}")
 
     def process_lap(self, json_packet):
         # ==========================================================
@@ -162,7 +148,6 @@ class Client(SDClient):
         # this restores lap timing by checking for rollover from maximum
         # node to node 0
         # ==========================================================
-
         # track lap progress
         if not self.all_nodes:
             self.all_nodes = set(range(json_packet['totalNodes']))
@@ -173,27 +158,17 @@ class Client(SDClient):
         self.current_node = json_packet['activeNode']
         if self.previous_node is not None and self.current_node != self.previous_node:
             if self.previous_node == self.max_node and self.current_node == 0:
-                # display time + resent progress if it was a full lap
+                # display time + reset progress if it was a full lap
                 if len(self.all_nodes - self.lap_nodes) <= 10: # allow for skipped 
                     lap_time = json_packet['time'] - self.lap_start
                     self.lap_sum += lap_time
                     if self.current_lap > 1:
                         self.later_lap_sum += lap_time 
-                    if self.drive_mode in ('auto', 'auto_train'):
-                        lap_avg = self.lap_sum / self.current_lap 
-                        later_lap_avg = 0.0 if self.later_lap_sum == 0 else self.later_lap_sum / (self.current_lap - 1)
-                        print(f"Lap {self.current_lap}: {lap_time:.2f} | avg : {lap_avg:.3f} | {later_lap_avg:.3f}")
-                    else:
-                        print(f"Lap {self.current_lap}: {lap_time:.2f}")
-                    self.lap_nodes.clear()
-                    # add lap time to trial lap times if auto-trialing
-                    if self.drive_mode == 'auto':
-                        if self.current_lap <= self.trial_laps:
-                            self.trial_times.append(lap_time)
-                            self.print_trial_times()
+                    self.print_lap_time(lap_time)
                 else: 
                     # display '-' for time if not a complete lap
                     print(f"Lap {self.current_lap}: -")
+                self.lap_nodes.clear()
                 # iterate lap
                 self.lap_start = json_packet['time']
                 self.timer_start = time.time()
@@ -211,7 +186,6 @@ class Client(SDClient):
         self.refresh_sim = True
         self.stop()
 
-
     def send_config(self):
         # Racer
         msg = racer_config()
@@ -227,7 +201,6 @@ class Client(SDClient):
         time.sleep(0.2)
         print('config sent!')
 
-
     def send_controls(self, steering=0.0, throttle=0.0, brake=0.0):
         p = { "msg_type" : "control",
                 "steering" : steering.__str__(),
@@ -237,7 +210,6 @@ class Client(SDClient):
         self.send(msg)
         #this sleep lets the SDClient thread poll our message and send it out.
         time.sleep(self.poll_socket_sleep_sec)
-
 
     def stop(self):
         print(f'Client stopping after {self.current_lap-1} laps.')
@@ -270,6 +242,25 @@ class Autonomous_Client(Client):
 
     def __init__(self, address, conf, poll_socket_sleep_time=0.01):
         super().__init__(address, conf=conf, poll_socket_sleep_time=poll_socket_sleep_time)
+        self.driving = False
+        self.current_image = None
+        self.pilot = Autopilot(conf)
+        self.trial_times = []
+
+    def print_lap_time(self, lap_time):
+        lap_avg = self.lap_sum / self.current_lap 
+        later_lap_avg = 0.0 if self.later_lap_sum == 0 else self.later_lap_sum / (self.current_lap - 1)
+        print(f"Lap {self.current_lap}: {lap_time:.2f} | avg : {lap_avg:.3f} | {later_lap_avg:.3f}")
+        if self.current_lap <= self.trial_laps:
+            self.trial_times.append(lap_time)
+            self.print_trial_times()
+
+    def print_trial_times(self):
+        print('trial times: ', end='')
+        for n, t in enumerate(self.trial_times):
+            print(f'{t:.2f}' + (',' * (n < (len(self.trial_times) - 1))), end=' ')
+        later_lap_avg = 0.0 if self.later_lap_sum == 0 else self.later_lap_sum / (self.current_lap - 1)
+        print(f'| {later_lap_avg:.3f}')
 
     def process_telemetry(self, json_packet):
         # don't try to start predicting without input
@@ -334,10 +325,7 @@ class Autonomous_Client(Client):
                 self.driving = False
         else:
             self.update_driving_status()
-            if HAS_TELEM:
-                inputs = self.current_image, self.current_telem
-            else:
-                inputs = [self.current_image]
+            inputs = self.current_image, self.current_telem
             steering, throttle = self.pilot.infer(inputs)
     
         if not self.driving:
