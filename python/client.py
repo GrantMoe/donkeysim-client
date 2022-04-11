@@ -82,63 +82,34 @@ class Client(SDClient):
 
         if json_packet['msg_type'] == "collision_with_starting_line":
             print('collision_with_starting_line!')
-            # # display time + resent progress if it was a full lap
-            # if len(self.all_nodes - self.lap_nodes) <= 10: # allow for skipped 
-            #     lap_time = json_packet['timeStamp'] - self.lap_start
-            #     self.lap_sum += lap_time
-            #     if self.current_lap > 1:
-            #         self.later_lap_sum += lap_time 
-            #     if self.drive_mode in ('auto', 'auto_train'):
-            #         lap_avg = self.lap_sum / self.current_lap 
-            #         later_lap_avg = 0.0 if self.later_lap_sum == 0 else self.later_lap_sum / (self.current_lap - 1)
-            #         print(f"Lap {self.current_lap}: {lap_time:.2f} | avg : {lap_avg:.3f} / {later_lap_avg:.3f}")
-            #     else:
-            #         print(f"Lap {self.current_lap}: {lap_time:.2f}")
-            #     self.lap_nodes.clear()
-            # else: 
-            #     # display '-' for time if not a complete lap
-            #     print(f"Lap {self.current_lap}: -")
-            # # iterate lap
-            # self.lap_start = json_packet['timeStamp']
-            # self.timer_start = time.time()
-            # self.current_lap += 1
-            # # record laps if tracking thing separately
-            # if self.record_laps:
-            #     self.lap_recorder.record(self.current_lap, json_packet['timeStamp'])
 
         if json_packet['msg_type'] == "telemetry":
             del json_packet['msg_type']
+            self.on_telemetry()
 
-            if json_packet['hit'] != 'none':
-                print(f"hit: {json_packet['hit']}")
 
-            self.process_lap(json_packet)
+    def on_telemetry(self, json_packet):
+        if json_packet['hit'] != 'none':
+            print(f"hit: {json_packet['hit']}")
 
-            # check for crash/timeout if auto-training
-            # TODO: switch to auto_train client
-            if self.lap_start:
-                self.lap_elapsed = json_packet['time'] - self.lap_start
-                lap_elapsed = time.time() - self.timer_start
-                if self.drive_mode == 'auto_train' and lap_elapsed > AUTO_TIMEOUT:
-                    print('Auto-training lap timeout')
-                    self.reset_car()
+        self.process_lap(json_packet)
 
-            telemetry_data = self.process_telemetry(json_packet=json_packet)
+        telemetry_data = self.process_telemetry(json_packet=json_packet)
 
-            # brakes (test)
-            if self.brake_telem is not None: # brake_telem can be zero. ugh.
-                telemetry_data['brake'] = self.brake_telem
-                self.brake_telem = None
-            # add lap
-            telemetry_data['lap'] = self.current_lap
-            # Start recording when you first start moving
-            if self.recorder and json_packet['throttle'] > 0.0:
-                self.start_recording = True
-            # record image/telemetry
-            if self.start_recording:
-                self.recorder.record(telemetry_data)
-            # indicate there is new data on which to make a prediction
-            # self.fresh_data = True    
+        # brakes (test)
+        if self.brake_telem is not None: # brake_telem can be zero. ugh.
+            telemetry_data['brake'] = self.brake_telem
+            self.brake_telem = None
+        # add lap
+        telemetry_data['lap'] = self.current_lap
+        # Start recording when you first start moving
+        if self.recorder and json_packet['throttle'] > 0.0:
+            self.start_recording = True
+        # record image/telemetry
+        if self.start_recording:
+            self.recorder.record(telemetry_data)
+        # indicate there is new data on which to make a prediction
+        # self.fresh_data = True    
 
     def print_lap_time(self, lap_time):
         print(f"Lap {self.current_lap}: {lap_time:.2f}")
@@ -332,6 +303,20 @@ class Autonomous_Client(Client):
         if not self.driving:
             steering, throttle, brake = 0.0, 0.0, 1.0
         self.send_controls(steering, throttle, brake)
+
+class Autonomous_Trainer(Autonomous_Client):
+
+    def __init__(self, address, conf, poll_socket_sleep_time=0.01):
+        super().__init__(address, conf, poll_socket_sleep_time)
+
+    def on_telemetry(self, json_packet):
+        super().on_telemetry(json_packet)
+        if self.lap_start:
+            # self.lap_elapsed = json_packet['time'] - self.lap_start
+            lap_elapsed = time.time() - self.timer_start
+            if self.drive_mode == 'auto_train' and lap_elapsed > AUTO_TIMEOUT:
+                print('Auto-training lap timeout')
+                self.reset_car()
 
 
 class Manual_Client(Client):
