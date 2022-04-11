@@ -101,11 +101,6 @@ if __name__ == "__main__":
                         default=DEFAULT_IMAGE_DEPTH,
                         help="image channels", 
                         choices=IMAGE_DEPTHS,) 
-    # parser.add_argument("--drive_mode", 
-    #                     type=str, 
-    #                     default=DEFAULT_DRIVE_MODE, 
-    #                     help="manual control or autopilot", 
-    #                     choices=DRIVE_MODES,) 
     parser.add_argument("--model_number",
                         type=int,
                         default=None,
@@ -120,7 +115,7 @@ if __name__ == "__main__":
     conf = {
         "host": args.host,
         "port": args.port,
-        "record_format": args.record_format,
+        "record_format": None, #args.record_format,
         "image_format": args.image_format,
         "image_depth": args.image_depth,
         "drive_mode": 'auto',

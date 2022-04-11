@@ -101,15 +101,6 @@ if __name__ == "__main__":
                         default=DEFAULT_IMAGE_DEPTH,
                         help="image channels", 
                         choices=IMAGE_DEPTHS,) 
-    # parser.add_argument("--drive_mode", 
-    #                     type=str, 
-    #                     default=DEFAULT_DRIVE_MODE, 
-    #                     help="manual control or autopilot", 
-    #                     choices=DRIVE_MODES,) 
-    # parser.add_argument("--model_number",
-    #                     type=int,
-    #                     default=None,
-    #                     help='model_history index for model and scaler paths')
     parser.add_argument("--telem_type",
                         type=str,
                         default=DEFAULT_TELEM,
@@ -129,12 +120,7 @@ if __name__ == "__main__":
         "controller_path": CONTROLLER_PATH,
         "record_laps": RECORD_LAPS,
         "telem_type": DEFAULT_TELEM,
-        # "model_number": args.model_number,
-        # "model_history": MODEL_HISTORY_PATH,
-        # "model_type":  MODEL_TYPE,
-        # "sequence_length": SEQUENCE_LENGTH,
         "use_brakes": USE_BRAKES,
-        # "auto_training": AUTO_TRAINING
     }
     while True: 
         refresh = run_client(conf)
