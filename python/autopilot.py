@@ -21,11 +21,6 @@ class Autopilot:
         self.scaler = pickle.load(open(f"{SCALER_DIRECTORY}/{data['scaler_file']}", 'rb'))
         self.telemetry_columns = data['telemetry_columns']
         self.model_type = conf['model_type']
-        if self.model_type == 'lstm':
-            self.sequence_length = conf['sequence_length']
-            # using maxlen will take care of 'popping'
-            self.img_seq = deque(maxlen=self.sequence_length)
-            self.tel_seq = deque(maxlen=self.sequence_length)
         self.image_depth = conf['image_depth']
         self.active = True
         print('autopilot initiated')
@@ -35,42 +30,18 @@ class Autopilot:
         img_array = img_to_array(img)
         return img_array / 255
 
-    # load up sequence queues and shape accordingly
-    def process_lstm(self, img, tel):
-
-        # if the queues are empty, fill them with first image
-        while len(self.img_seq) < self.sequence_length:
-            self.img_seq.append(img)
-        while len(self.tel_seq) < self.sequence_length:
-            self.tel_seq.append(tel)
-        
-         # add newest input
-        self.img_seq.append(img)
-        self.tel_seq.append(tel)
-        
-        # shape as expected by model
-        img_array = np.array(self.img_seq).reshape(-2, 3, 120, 160, 1)
-        tel_array = np.array(self.tel_seq).reshape(-1, 3, 5, 1)
-        
-        return img_array, tel_array
-
     def infer(self, inputs):
         
-        if self.model_type == 'lstm':
+        if self.model_number < 309:
             img = self.norm_image(inputs[0])
-            imu = self.scaler.transform(np.array([inputs[1]]))
-            img_in, imu_in = self.process_lstm(img, imu)
-        else: # self.model_ty[e == 'vimu':
-            if self.model_number < 309:
-                img = self.norm_image(inputs[0])
-            else:
-                img = img_to_array(inputs[0])
-            if 982 <= self.model_number <= 993:
-                img = img[40:120, 0:160]
+        else:
+            img = img_to_array(inputs[0])
+        if 982 <= self.model_number <= 993:
+            img = img[40:120, 0:160]
 
-            imu = np.array([inputs[1]])
-            imu_in = self.scaler.transform(imu)
-            img_in = img.reshape((1,)+img.shape)
+        imu = np.array([inputs[1]])
+        imu_in = self.scaler.transform(imu)
+        img_in = img.reshape((1,)+img.shape)
 
         # grab inference
         pred = self.model([img_in, imu_in], training=False)
