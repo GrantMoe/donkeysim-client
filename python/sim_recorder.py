@@ -172,8 +172,9 @@ class CSVRecorder:
         self.telem_type = conf.telem_type
         self.dir = f'{os.getcwd()}/../data/{time_str}'
         os.makedirs(self.dir, exist_ok=True)
-        self.img_dir = f'{self.dir}/images'
-        os.makedirs(self.img_dir, exist_ok=True)
+        if self.telem_type == 'gym':
+            self.img_dir = f'{self.dir}/images'
+            os.makedirs(self.img_dir, exist_ok=True)
         self.csv_file_path = f'{self.dir}/data.csv'
         cols = conf.TELEMETRY_COLUMNS[conf.telem_type]
         with open(self.csv_file_path, 'w', newline='') as csv_outfile:
@@ -190,10 +191,10 @@ class CSVRecorder:
                     ).getchannel(self.image_depth)
             image.save(f"{self.img_dir}/{json_packet['time']}.{self.image_format.lower()}")
             json_packet['image'] = f"{json_packet['time']}.{self.image_format.lower()}" 
-        else:
-            image = Image.fromarray(json_packet['image'])
-            image.save(f"{self.img_dir}/{json_packet['timestep']}.{self.image_format.lower()}")
-            del json_packet['image']
+        # else:
+            # image = Image.fromarray(json_packet['image'])
+            # image.save(f"{self.img_dir}/{json_packet['timestep']}.{self.image_format.lower()}")
+            # del json_packet['image']
             # json_packet['image'] = f"{json_packet['timestep']}.{self.image_format.lower()}" 
         with open(self.csv_file_path, 'a', newline='') as csv_outfile:
             row_writer = csv.writer(csv_outfile)
