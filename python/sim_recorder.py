@@ -8,7 +8,8 @@ import base64
 from io import BytesIO
 from PIL import Image
 
-from config import TELEMETRY_COLUMNS
+# from conf import TELEMETRY_COLUMNS
+import conf
 
 
 class GymRecorder:
@@ -25,17 +26,16 @@ class GymRecorder:
 
 class SimRecorder:
 
-    def __init__(self, conf):
+    def __init__(self):
         record_format = conf.record_format 
         image_format = conf.image_format
         image_depth = conf.image_depth
         telem_type = conf.telem_type
-        self.use_brakes = conf.use_brakes
         if record_format == 'tub':
             self.recorder = TubRecorder(image_format, image_depth)
         elif record_format == 'CSV':
             # self.recorder = CSVRecorder(image_format, image_depth, telem_type)
-            self.recorder = CSVRecorder(conf)
+            self.recorder = CSVRecorder()
         elif record_format == 'ASL':
             self.recorder = ASLRecorder(image_format, image_depth)
         else:
@@ -167,7 +167,7 @@ class LapRecorder:
 class CSVRecorder:
 
     # def __init__(self, image_format, image_depth, telem_type):
-    def __init__(self, conf):
+    def __init__(self):
         time_str = time.strftime("%m_%d_%Y/%H_%M_%S")
         self.telem_type = conf.telem_type
         self.dir = f'{os.getcwd()}/../data/{time_str}'
@@ -175,18 +175,16 @@ class CSVRecorder:
         self.img_dir = f'{self.dir}/images'
         os.makedirs(self.img_dir, exist_ok=True)
         self.csv_file_path = f'{self.dir}/data.csv'
-        cols = TELEMETRY_COLUMNS[conf.telem_type]
-        if conf.use_brakes and 'brake' not in cols:
-            cols.append('brake')
+        cols = conf.TELEMETRY_COLUMNS[conf.telem_type]
         with open(self.csv_file_path, 'w', newline='') as csv_outfile:
             row_writer = csv.writer(csv_outfile)
             row_writer.writerow(cols)
-        self.image_format = conf.image_format
-        self.image_depth = conf.image_depth
-        print(self.csv_file_path)
+        self.image_format = 'PNG' # conf.image_format
+        self.image_depth = 1 # conf.image_depth
+        print(f"DATA FILE: {self.csv_file_path}")
 
     def record(self, json_packet):
-        if self.telem_type != 'gym': # 'gym' stores image in csv as np array
+        if conf.telem_type != 'gym': # 'gym' stores image in csv as np array
             image = Image.open(
                     BytesIO(base64.b64decode(json_packet['image']))
                     ).getchannel(self.image_depth)

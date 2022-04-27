@@ -1,28 +1,14 @@
-## File for holding configuration for donkey sim client
-CONTROLLER_TYPE = 'xbox' 
-CONTROLLER_PATH = '/dev/input/by-id/usb-Microsoft_Controller_3039363431313739383635393433-event-joystick'
-MODEL_HISTORY_PATH = '/home/grant/projects/vrl/models/model_history.csv'
-MODEL_DIRECTORY = '/home/grant/projects/vrl/models'
-SCALER_DIRECTORY = '/home/grant/projects/vrl/scalers'
-MODEL_TYPE = 'vimu' # 'lstm'
-SEQUENCE_LENGTH = 3 
+model_history = '/home/grant/projects/vrl/models/model_history.csv'
+model_directory = '/home/grant/projects/vrl/models'
+scaler_directory = '/home/grant/projects/vrl/scalers'
 
-AUTO_TIMEOUT = 23 # FAST
-# AUTO_TRAINING = False
-START_DELAY = 3 # don't know
+record_format = 'CSV' # None, 'CSV', 'tub' (Donkey Car), 'ASL' (openvslam)
+image_format = 'PNG' # 'JPG', 'PNG', 'TGA'
+image_depth = 1 # 1:'grayscale', 3:'rgb'
+telem_type = 'donkey_extended' # 'donkey_basic', 'donkey_extended', 'gym'
+trial_laps = 10
+auto_timeout = 23 # FAST
 
-RECORD_LAPS = False
-HAS_TELEM = True
-USE_BRAKES = False
-DEFAULT_TELEM = 'donkey_extended' 
-
-DEFAULT_TRACK = 'mountain_track' #  'generated_road', 'warehouse', 'sparkfun_avc', 'generated_track', 'roboracingleague_1', 'waveshare', 'mini_monaco', 'warren', 'circuit_launch', 'mountain_track'
-DEFAULT_RECORD_FORMAT =  None # None, 'ASL', 'CSV', 'tub'
-DEFAULT_IMAGE_FORMAT = 'PNG' # 'JPG', 'PNG', 'TGA'
-DEFAULT_IMAGE_DEPTH = 1 # 1:'grayscale', 3:'rgb'
-#DEFAULT_DRIVE_MODE =  'auto' # 'auto', 'auto_train', 'manual' 
-# DEFAULT_HOST = "127.0.0.1" # localhost 
-DEFAULT_HOST = "donkey-sim.roboticist.dev" # twitch server
 
 racer_conf = {
     'msg_type' : 'racer_info',
@@ -43,8 +29,10 @@ car_conf = {
     'body_r': 234, # orange=255, pink=234
     'body_g' : 21, # orange=72, pink=21 
     'body_b' : 144, # orange=0, pink=144 
-    'car_name' : 'Grant', #'A 1985 Toyota Camry', ' ∅ ', # 
-    'font_size' : 50,
+    # 'car_name' : 'Grant', #'A 1985 Toyota Camry', ' ∅ ', # 
+    'car_name' : '', #'A 1985 Toyota Camry', ' ∅ ', # 
+    # 'font_size' : 32,
+    'font_size' : 32,
 }
 
 # Camera config
@@ -71,53 +59,6 @@ cam_conf = {
     'rot_x' : 0.0 
 }
 
-
-
-# 0 is default
-TRACKS = [
-    'generated_road', 
-    'warehouse', 
-    'sparkfun_avc', 
-    'generated_track', 
-    'roboracingleague_1', 
-    'waveshare', 
-    'mini_monaco', 
-    'warren', 
-    'circuit_launch',
-    'mountain_track'
-    ]
-
-RECORD_FORMATS = [
-    None,
-    'CSV',
-    'tub', # Donkey Car
-    'ASL', # openvslam
-]
-
-IMAGE_FORMATS = [
-    'PNG', # default
-    'JPG',
-    'TGA'
-]
-
-IMAGE_DEPTHS = [
-    1, #default
-    3, # RGB'
-]
-
-DRIVE_MODES = [
-    'manual', # default
-    'auto',
-    'auto_train',
-    'telem_test',
-]
-
-TELEM_TYPES = [
-    'donkey_basic',
-    'donkey_extended',
-    'gym'
-]
-
 # telemetry columns
 # msg_type removed, lap added by me
 
@@ -126,17 +67,18 @@ TELEMETRY_COLUMNS = {
         'steering_angle', 'throttle', 'speed', 'image', 'hit',
         'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
         'gyro_y', 'gyro_z', 'pitch', 'yaw', 'roll',
-        'activeNode', 'totalNodes', 'lap'
+        'activeNode', 'totalNodes', 'lap', 'track'
         ],
     'donkey_extended': [
         'steering', 'throttle', 'speed', 'image', 'hit', 
         'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
         'gyro_y', 'gyro_z', 'pitch', 'yaw', 'roll', 
         'cte', 'activeNode', 'totalNodes', 'pos_x', 'pos_y', 
-        'pos_z', 'vel_x', 'vel_y', 'vel_z', 'lap'
+        'pos_z', 'vel_x', 'vel_y', 'vel_z', 'lap', 'track'
         ],
     'gym': [
         'pos', 'cte', 'speed', 'hit', 'gyro', 'accel', 'vel', 'lidar', 
         'car', 'last_lap_time', 'lap_count', 'timestep', 'time'
         ]
 }
+
