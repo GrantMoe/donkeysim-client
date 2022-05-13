@@ -8,21 +8,28 @@ from pickle import load
 from tensorflow.keras.models import load_model
 
 
-from conf import model_directory, model_history, scaler_directory
+from config import model_directory, model_history, scaler_directory
 
 class Autopilot:
 
     def __init__(self, conf):
         data = model_paths(model_history, conf['model_number'])
         self.model = load_model(f"{model_directory}/{data['model_file']}", compile=False)
-        self.scaler = load(open(f"{scaler_directory}/{data['scaler_file']}", 'rb'))
+        if data['scaler_file']:
+            self.scaler = load(open(f"{scaler_directory}/{data['scaler_file']}", 'rb'))
+            print(f"{data['scaler_file'] = }")
+        else:
+            self.scaler = None
         self.telemetry_columns = data['telemetry_columns']
 
 
     def infer(self, inputs):
         img = asfarray(inputs[0])
         imu = array([inputs[1]])
-        imu_in = self.scaler.transform(imu)
+        if self.scaler:
+            imu_in = self.scaler.transform(imu)
+        else:
+            imu_in = imu
         img_in = img.reshape((1,)+img.shape)
 
         # grab inference
@@ -32,10 +39,15 @@ class Autopilot:
         if isinstance(pred, list):
             st_pred = pred[0].numpy()[0][0]
             th_pred = pred[1].numpy()[0][0]
+            br_pred = 0.0
         else:
             st_pred = pred.numpy()[0][0]
             th_pred = pred.numpy()[0][1]
-        return st_pred, th_pred
+            if pred.shape[-1] == 3:
+                br_pred = pred.numpy()[0][2]
+            else:
+                br_pred = 0.0
+        return st_pred, th_pred, br_pred
 
 
 def model_paths(model_history_file, model_number):

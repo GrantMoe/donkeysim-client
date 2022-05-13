@@ -4,7 +4,7 @@ import time
 from io import BytesIO
 from PIL import Image
 
-from conf import auto_timeout, image_depth, trial_laps
+from config import auto_timeout, image_depth, trial_laps
 from pilot import Autopilot
 from client import Client
 from sim_recorder import SimRecorder
@@ -24,19 +24,20 @@ class AutoClient(Client):
         time.sleep(1)
 
         super().__init__(address, conf=conf, poll_socket_sleep_time=poll_socket_sleep_time)
-
         if self.mode == 'train':
-            self.recorder = SimRecorder()
-            self.track = conf['track']
-            self.driving = True
+            self.recorder = SimRecorder(conf)
+            self.braking = 0.0
         if self.mode == 'trial':
             self.trial_times = []
+
+        # only holds at the starting line if there's a race
+        self.driving = self.mode in ['train', 'trial']
 
     def on_telemetry(self, data):
         self.check_progress(data)
         self.update_telemetry(data)
         if self.mode == 'train':
-            data['track'] = self.track
+            data['brake'] = self.braking
             data['lap'] = self.current_lap
             self.recorder.record(data)
 
@@ -44,8 +45,9 @@ class AutoClient(Client):
         # decode image
         self.current_image = Image.open(
             BytesIO(base64.b64decode(data['image']))).getchannel(image_depth)
-        data['first_lap'] = int(self.current_lap == 1)
-        # add telemetry from json
+        # add specified telemetry from json
+        if 'first_lap' in self.pilot.telemetry_columns:
+            data['first_lap'] = self.current_lap == 1
         self.current_telem = [data[x] for x in self.pilot.telemetry_columns]
         self.fresh_data = True
         if self.mode == 'train':
@@ -55,7 +57,7 @@ class AutoClient(Client):
         if self.lap_start:
             lap_elapsed = time - self.lap_start
             if lap_elapsed > auto_timeout:
-                print('Auto-training lap timeout')
+                print('Auto timeout')
                 self.reset_car = True
                 self.stop()
 
@@ -65,17 +67,24 @@ class AutoClient(Client):
         if not self.current_image:
             print("Waiting for first image")
             self.driving = False
-            return
+            # return
         if self.fresh_data:
             inputs = self.current_image, self.current_telem
-            steering, throttle = self.pilot.infer(inputs)
+            steering, throttle, brake = self.pilot.infer(inputs)
+            if brake < 0.01:
+                brake = 0
             self.fresh_data = False
         if not self.driving:
             steering, throttle, brake = 0.0, 0.0, 1.0
+        if self.mode == 'train':
+            self.braking = brake
         self.send_controls(steering, throttle, brake)
 
     def on_full_lap(self, lap_time):
+        dirty_lap = self.hit_count > 0
         print(f"Lap {self.current_lap}: {lap_time:.2f}", end="")
+        if self.hit_count > 0:
+            print('*', end="")
         if self.current_lap > 1:
             self.later_lap_sum += lap_time
             later_lap_avg = self.later_lap_sum / (self.current_lap - 1)
@@ -84,12 +93,12 @@ class AutoClient(Client):
         if self.mode == 'trial' and self.current_lap <= trial_laps:
             self.trial_times.append(lap_time)
             if self.current_lap > 1:
-                self.print_trial_times()
+                self.print_trial_times(dirty_lap)
 
-    def print_trial_times(self):
+    def print_trial_times(self, dirty_lap):
         print('trial times: ', end='')
         for n, t in enumerate(self.trial_times):
-            print(f'{t:.2f}' + (',' * (n < (len(self.trial_times) - 1))), end=' ')
+            print(f'{t:.2f}' + ('*' * dirty_lap) + (',' * (n < (len(self.trial_times) - 1))), end=' ')
         trial_avg = sum(self.trial_times[1:])/(len(self.trial_times)-1)
         print(f'| {trial_avg:.3f}')
 
@@ -106,6 +115,7 @@ def run_client(conf):
     # doesn't work when this isn't here
     # Configure Car
     client.send_config()
+    time.sleep(1.0)
 
     # Drive car
     run_sim = True
@@ -114,10 +124,10 @@ def run_client(conf):
         try:
             client.update()
             if client.aborted:
-                print("Client aborted, stopping driving.")
+                # print("Client aborted, stopping driving.")
                 run_sim = False
             if client.reset_car:
-                print("Refreshing sim")
+                # print("Refreshing sim")
                 refresh_sim = True
                 run_sim = False
             if not client.driving:
@@ -132,7 +142,7 @@ def run_client(conf):
     time.sleep(0.2)
 
     # Close down client
-    print("waiting for msg loop to stop")
+    # print("waiting for msg loop to stop")
     client.stop()
     return refresh_sim
 
@@ -173,19 +183,20 @@ if __name__ == "__main__":
                         type=str,
                         default="trial",
                         help="autonomous driving mode",
-                        choices=['race', 'train','trial']
+                        choices=['race', 'train', 'trial']
                         )
 
     args = parser.parse_args()
     conf = {
         "host": args.host,
         "port": args.port,
-        # "record_format": args.record_format,
-        # "image_format": args.image_format,
-        # "image_depth": args.image_depth,
         "mode": args.mode,
         "track": args.track,
         "model_number": args.model_number,
+        "record_format": 'CSV', # None, 'CSV', 'tub' (Donkey Car), 'ASL' (openvslam)
+        "image_format": 'PNG', # 'JPG', 'PNG', 'TGA'
+        "image_depth": 1, # 1:'grayscale', 3:'rgb'
+        "telem_type": 'donkey_extended_brake' # 'donkey_basic', 'donkey_extended_brake', 'gym'
     }
     while True: 
         refresh = run_client(conf)

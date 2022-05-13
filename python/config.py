@@ -5,9 +5,9 @@ scaler_directory = '/home/grant/projects/vrl/scalers'
 record_format = 'CSV' # None, 'CSV', 'tub' (Donkey Car), 'ASL' (openvslam)
 image_format = 'PNG' # 'JPG', 'PNG', 'TGA'
 image_depth = 1 # 1:'grayscale', 3:'rgb'
-telem_type = 'donkey_extended' # 'donkey_basic', 'donkey_extended', 'gym'
+# telem_type = 'donkey_extended' # 'donkey_basic', 'donkey_extended', 'gym'
 trial_laps = 10
-auto_timeout = 23 # FAST
+auto_timeout = 22 #GOTTA GO FAST
 
 
 racer_conf = {
@@ -51,7 +51,7 @@ cam_conf = {
     'fish_eye_y' : 0.0, 
     'img_w' : 160, # 1280, # 64, 
     'img_h' : 120, # 720, # 64, 
-    'img_d' : 3, 
+    'img_d' : 1, 
     'img_enc' : 'PNG', 
     'offset_x' : 0.0, 
     'offset_y' : 0.0, 
@@ -67,14 +67,21 @@ TELEMETRY_COLUMNS = {
         'steering_angle', 'throttle', 'speed', 'image', 'hit',
         'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
         'gyro_y', 'gyro_z', 'pitch', 'yaw', 'roll',
-        'activeNode', 'totalNodes', 'lap', 'track'
+        'activeNode', 'totalNodes', 'lap'
         ],
     'donkey_extended': [
-        'steering', 'throttle', 'speed', 'image', 'hit', 
+        'steering_angle', 'throttle', 'speed', 'image', 'hit', 
         'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
         'gyro_y', 'gyro_z', 'pitch', 'yaw', 'roll', 
         'cte', 'activeNode', 'totalNodes', 'pos_x', 'pos_y', 
-        'pos_z', 'vel_x', 'vel_y', 'vel_z', 'lap', 'track'
+        'pos_z', 'vel_x', 'vel_y', 'vel_z', 'lap'
+        ],
+    'donkey_extended_brake': [
+        'steering_angle', 'throttle', 'speed', 'image', 'hit', 
+        'time', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 
+        'gyro_y', 'gyro_z', 'pitch', 'yaw', 'roll', 
+        'cte', 'activeNode', 'totalNodes', 'pos_x', 'pos_y', 
+        'pos_z', 'vel_x', 'vel_y', 'vel_z', 'brake', 'lap'
         ],
     'gym': [
         'pos', 'cte', 'speed', 'hit', 'gyro', 'accel', 'vel', 'lidar', 

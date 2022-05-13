@@ -9,7 +9,7 @@ from abc import abstractmethod
 
 from gym_donkeycar.core.sim_client import SDClient
 
-from conf import cam_conf, car_conf, racer_conf
+from config import cam_conf, car_conf, racer_conf
 
 class Client(SDClient):
 
@@ -27,6 +27,7 @@ class Client(SDClient):
         self.throttle_scale = 1.0
         self.fastest_time = None
         self.fastest_laps = 0
+        self.hit_count = 0
 
     def config_builder(self, config_dict):
         msg_string = "{"
@@ -56,7 +57,8 @@ class Client(SDClient):
         if json_packet['msg_type'] == "telemetry":
             del json_packet['msg_type']
             if json_packet['hit'] != 'none':
-                print(f" * hit: {json_packet['hit']} *")
+                self.hit_count += 1
+            #     print(f" * hit: {json_packet['hit']} *")
             self.on_telemetry(json_packet)
     
     @ abstractmethod
@@ -91,6 +93,7 @@ class Client(SDClient):
             print(f"Lap {self.current_lap}: -")
         self.lap_nodes.clear()
         self.lap_start = time_crossed
+        self.hit_count = 0
         self.current_lap += 1      
 
     def on_full_lap(self, lap_time):
@@ -124,11 +127,11 @@ class Client(SDClient):
         time.sleep(0.2)
         print('config sent!')
 
-    def send_controls(self, steering=0.0, throttle=0.0, brake=1.0):
+    def send_controls(self, steering=0.0, throttle=0.0, brake=0.0):
         p = { "msg_type" : "control",
                 "steering" : steering.__str__(),
                 "throttle" : throttle.__str__(),
-                "brake" : brake.__str__() } #"0.0" }
+                "brake" : brake.__str__() }
         msg = json.dumps(p)
         self.send(msg)
         #this sleep lets the SDClient thread poll our message and send it out.
