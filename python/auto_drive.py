@@ -21,7 +21,7 @@ class AutoClient(Client):
         self.later_lap_sum = 0
 
         # give time for the autopilot to start up
-        time.sleep(1)
+        # time.sleep(1)
 
         super().__init__(address, conf=conf, poll_socket_sleep_time=poll_socket_sleep_time)
         if self.mode == 'train':
@@ -30,8 +30,13 @@ class AutoClient(Client):
         if self.mode == 'trial':
             self.trial_times = []
 
+        # time.sleep(1)
+
         # only holds at the starting line if there's a race
         self.driving = self.mode in ['train', 'trial']
+
+        # keep from rolling forward while setting up
+        self.send_controls(0.0, 0.0, 1.0)
 
     def on_telemetry(self, data):
         self.check_progress(data)
@@ -51,18 +56,19 @@ class AutoClient(Client):
         self.current_telem = [data[x] for x in self.pilot.telemetry_columns]
         self.fresh_data = True
         if self.mode == 'train':
-            self.check_timer(data['time'])
+            self.check_reset(data['time'], data['hit'])
     
-    def check_timer(self, time):
+    def check_reset(self, time, hit):
         if self.lap_start:
             lap_elapsed = time - self.lap_start
-            if lap_elapsed > auto_timeout:
-                print('Auto timeout')
+            timed_out = lap_elapsed > auto_timeout
+            crashed = hit != 'none'
+            if timed_out or crashed:
+                print(f"{'Auto timeout' * timed_out}{'Crashed!' * crashed}")
                 self.reset_car = True
-                self.stop()
+                # self.stop()
 
     def update(self):
- 
         steering, throttle, brake = 0.0, 0.0, 0.0
         if not self.current_image:
             print("Waiting for first image")
@@ -108,6 +114,13 @@ def run_client(conf):
     port = conf["port"]
     client = AutoClient(address=(host, port), conf=conf,)
 
+
+    # msg = '{ "msg_type" : "exit_scene" }'
+    # client.send(msg)
+    # time.sleep(0.5)
+
+    # time.sleep(2)
+
     # Load Track
     msg = f'{{"msg_type" : "load_scene", "scene_name" : "{conf["track"]}"}}'
     client.send(msg)
@@ -137,9 +150,9 @@ def run_client(conf):
             run_sim = False
         time.sleep(0.1)
 
-    msg = '{ "msg_type" : "exit_scene" }'
-    client.send(msg)
-    time.sleep(0.2)
+    # msg = '{ "msg_type" : "exit_scene" }'
+    # client.send(msg)
+    # time.sleep(0.5)
 
     # Close down client
     # print("waiting for msg loop to stop")
@@ -202,4 +215,5 @@ if __name__ == "__main__":
         refresh = run_client(conf)
         if not refresh:
             break
+        # time.sleep(3)
     print("client stopped")
