@@ -7,13 +7,15 @@ image_format = 'PNG' # 'JPG', 'PNG', 'TGA'
 image_depth = 1 # 1:'grayscale', 3:'rgb'
 # telem_type = 'donkey_extended' # 'donkey_basic', 'donkey_extended', 'gym'
 trial_laps = 10
-auto_timeout = 22 #GOTTA GO FAST
+auto_timeout = 35
 
+# y = a*X^3 + (1-a)*X
+expo_a = 0.8
 
 racer_conf = {
     'msg_type' : 'racer_info',
     'racer_name' : 'Grant',
-    # 'car_name' : 'Grant',
+    'car_name' : 'Grant',
     'bio' : '¯\_(ツ)_/¯',
     'country' : 'California',
     'guid' : "8675309"
@@ -25,13 +27,12 @@ racer_conf = {
 # car_name = "string less than 64 char"
 car_conf = {
     'msg_type': 'car_config',
-    'body_style': 'car01', # donkey, bare, car01, cybertruck, f1
+    'body_style': 'donkey', # donkey, bare, car01, cybertruck, f1
     'body_r': 234, # orange=255, pink=234
     'body_g' : 21, # orange=72, pink=21 
     'body_b' : 144, # orange=0, pink=144 
-    # 'car_name' : 'Grant', #'A 1985 Toyota Camry', ' ∅ ', # 
-    'car_name' : '', #'A 1985 Toyota Camry', ' ∅ ', # 
-    # 'font_size' : 32,
+    'car_name' : 'Grant', #'A 1985 Toyota Camry', ' ∅ ', # 
+    # 'car_name' : '', #'A 1985 Toyota Camry', ' ∅ ', # 
     'font_size' : 32,
 }
 

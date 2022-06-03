@@ -24,6 +24,7 @@ class Autopilot:
 
 
     def infer(self, inputs):
+        # return 0.0, 1.0, 0.0
         img = asfarray(inputs[0])
         imu = array([inputs[1]])
         if self.scaler:
@@ -35,8 +36,12 @@ class Autopilot:
         # grab inference
         pred = self.model([img_in, imu_in], training=False)
         
-        # checks if single or dual ouput based on return type
-        if isinstance(pred, list):
+        if len(pred) == 1:
+            st_pred = pred.numpy()[0][0]
+            th_pred = 1.0
+            br_pred = 0.0
+#        checks if single or dual ouput based on return type
+        elif isinstance(pred, list): # double output
             st_pred = pred[0].numpy()[0][0]
             th_pred = pred[1].numpy()[0][0]
             br_pred = 0.0

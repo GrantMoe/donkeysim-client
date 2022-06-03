@@ -39,7 +39,8 @@ class AutoClient(Client):
         self.send_controls(0.0, 0.0, 1.0)
 
     def on_telemetry(self, data):
-        self.check_progress(data)
+        # print(f"{data['time'] = }")
+        self.check_progress(data) # no longer needed since Race Edition v22.05.30
         self.update_telemetry(data)
         if self.mode == 'train':
             data['brake'] = self.braking
@@ -48,9 +49,13 @@ class AutoClient(Client):
 
     def update_telemetry(self, data):
         # decode image
-        self.current_image = Image.open(
-            BytesIO(base64.b64decode(data['image']))).getchannel(image_depth)
-        # add specified telemetry from json
+        if image_depth  == 1:
+            self.current_image = Image.open(
+                BytesIO(base64.b64decode(data['image']))).getchannel(image_depth)
+        else:
+            self.current_image = Image.open(
+                BytesIO(base64.b64decode(data['image'])))
+            # add specified telemetry from json
         if 'first_lap' in self.pilot.telemetry_columns:
             data['first_lap'] = self.current_lap == 1
         self.current_telem = [data[x] for x in self.pilot.telemetry_columns]
@@ -58,12 +63,13 @@ class AutoClient(Client):
         if self.mode == 'train':
             self.check_reset(data['time'], data['hit'])
     
-    def check_reset(self, time, hit):
+    def check_reset(self, time_stamp, hit):
         if self.lap_start:
-            lap_elapsed = time - self.lap_start
+            lap_elapsed = time.time() - self.lap_start
             timed_out = lap_elapsed > auto_timeout
+            # print(lap_elapsed)
             crashed = hit != 'none'
-            if timed_out or crashed:
+            if timed_out: # or crashed:
                 print(f"{'Auto timeout' * timed_out}{'Crashed!' * crashed}")
                 self.reset_car = True
                 # self.stop()
@@ -117,7 +123,7 @@ def run_client(conf):
 
     # msg = '{ "msg_type" : "exit_scene" }'
     # client.send(msg)
-    # time.sleep(0.5)
+    time.sleep(0.5)
 
     # time.sleep(2)
 
@@ -177,7 +183,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="donkeysim_client")
     parser.add_argument("--host", 
                         type=str, 
-                        default="127.0.0.1", 
+                        # default="127.0.0.1", 
+                        default="donkey-sim.roboticist.dev",
                         help="host to use for tcp",)
     parser.add_argument("--port", 
                         type=int, 
@@ -185,7 +192,7 @@ if __name__ == "__main__":
                         help="port to use for tcp",)
     parser.add_argument("--track", 
                         type=str, 
-                        default="mountain_track",
+                        default="sparkfun_avc",
                         help="name of donkey sim environment", 
                         choices=track_list,)
     parser.add_argument("--model_number",

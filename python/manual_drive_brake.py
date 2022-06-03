@@ -2,6 +2,7 @@ import argparse
 import time
 
 from client import Client
+from config import expo_a
 from controller import Controller
 from sim_recorder import SimRecorder
 
@@ -14,7 +15,7 @@ class ManualBrakeClient(Client):
         self.ctr = Controller()
         self.recorder = SimRecorder(conf)
         self.driving = True
-
+        self.track = conf['track']
         self.brake_scale = 1.0
         self.braking = 0.0
 
@@ -40,6 +41,9 @@ class ManualBrakeClient(Client):
         steering, throttle, brake = self.get_controls()
         if not self.driving:
             steering, throttle, brake = 0.0, 0.0, 1.0
+        elif self.track == 'sparkfun_avc':
+            throttle = 1.0
+            brake = 0.0
         self.braking = brake
         self.send_controls(steering, throttle, brake)
 
@@ -60,7 +64,16 @@ class ManualBrakeClient(Client):
         st = self.ctr.norm(ax='left_stick_horz', low=-1.0, high=1.0)
         if abs(st) < 0.05:
             st = 0.0
+        if expo_a:
+            st = self.apply_expo(st)
         return st * self.steering_scale
+
+    def apply_expo(self, st_in):
+        negative_st = st_in < 0
+        st_out = (expo_a * pow(abs(st_in), 3)) + ((1.0 - expo_a) * abs(st_in))
+        if negative_st:
+            st_out *= -1.0
+        return st_out
 
     def manual_throttle(self):
         th = self.ctr.norm(ax='right_trigger', low=0.0, high=1.0)
@@ -153,8 +166,7 @@ if __name__ == "__main__":
                         help="port to use for tcp",)
     parser.add_argument("--track", 
                         type=str, 
-                        default="mountain_track",
-                        # default="warren",
+                        default="sparkfun_avc",
                         help="name of donkey sim environment", 
                         choices=track_list,)
 

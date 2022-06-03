@@ -51,14 +51,13 @@ class Client(SDClient):
             self.car_loaded = True        
 
         if json_packet['msg_type'] == "collision_with_starting_line":
-            print('collision_with_starting_line!')
             self.on_finish_line(json_packet['timeStamp'])
 
         if json_packet['msg_type'] == "telemetry":
             del json_packet['msg_type']
             if json_packet['hit'] != 'none':
                 self.hit_count += 1
-            #     print(f" * hit: {json_packet['hit']} *")
+                print(f" * hit: {json_packet['hit']} *")
             self.on_telemetry(json_packet)
     
     @ abstractmethod
@@ -80,8 +79,8 @@ class Client(SDClient):
         self.lap_nodes.add(json_packet['activeNode'])
         if self.previous_node is None:
             self.previous_node = json_packet['activeNode']
-        if (json_packet['activeNode'] == 1 and json_packet['activeNode'] != self.previous_node):
-            self.on_finish_line(json_packet['time'])
+        # if (json_packet['activeNode'] == 1 and json_packet['activeNode'] != self.previous_node):
+            # self.on_finish_line(json_packet['time'])
         self.previous_node = json_packet['activeNode']
 
     def on_finish_line(self, time_crossed):
@@ -92,9 +91,11 @@ class Client(SDClient):
         else:
             print(f"Lap {self.current_lap}: -")
         self.lap_nodes.clear()
-        self.lap_start = time_crossed
+        # self.lap_start = time_crossed
+        self.lap_start = time.time()
         self.hit_count = 0
-        self.current_lap += 1      
+        self.current_lap += 1
+        # print(f"{self.lap_start = }")      
 
     def on_full_lap(self, lap_time):
         print(f"Lap {self.current_lap}: {lap_time:.2f}", end="")
